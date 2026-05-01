@@ -167,18 +167,53 @@ export function DataTable<TData, TValue>({
     return `${effectiveRows.length} rows`
   })()
 
-  // Cmd+K opens actions
+  // Global keyboard handler — navigation works regardless of focus
   React.useEffect(() => {
-    if (!rowActions?.length) return
     const handler = (e: KeyboardEvent) => {
+      // Skip when focus is inside a text input to avoid hijacking typing
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) return
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        if (!rowActions?.length) return
         e.preventDefault()
         setActionsOpen(true)
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault()
+        table.toggleAllPageRowsSelected(true)
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActiveRowIndex((prev) =>
+          prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
+        )
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActiveRowIndex((prev) =>
+          prev === null ? 0 : Math.max(prev - 1, 0)
+        )
+      } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
+        e.preventDefault()
+        rows[activeRowIndex]?.toggleSelected()
+      } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length) {
+        e.preventDefault()
+        setActionsOpen(true)
+      } else if (e.key === 'Escape') {
+        setContextMenu(null)
+        if (selectedCount > 0) {
+          table.resetRowSelection()
+        } else {
+          setActiveRowIndex(null)
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [rowActions])
+  }, [rowActions, rows, activeRowIndex, selectedCount, table])
 
   // Close context menu on outside interaction
   React.useEffect(() => {
@@ -191,36 +226,6 @@ export function DataTable<TData, TValue>({
       window.removeEventListener('scroll', close, true)
     }
   }, [contextMenu])
-
-  const handleTableKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveRowIndex((prev) =>
-        prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
-      )
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveRowIndex((prev) =>
-        prev === null ? 0 : Math.max(prev - 1, 0)
-      )
-    } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
-      e.preventDefault()
-      rows[activeRowIndex]?.toggleSelected()
-    } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length) {
-      e.preventDefault()
-      setActionsOpen(true)
-    } else if (e.key === 'Escape') {
-      setContextMenu(null)
-      if (selectedCount > 0) {
-        table.resetRowSelection()
-      } else {
-        setActiveRowIndex(null)
-      }
-    } else if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      table.toggleAllPageRowsSelected(true)
-    }
-  }
 
   const handleContextMenu = (e: React.MouseEvent, rowIndex: number) => {
     if (!rowActions?.length) return
@@ -256,14 +261,7 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div
-        className="rounded-md border border-border overflow-hidden outline-none"
-        tabIndex={0}
-        onKeyDown={handleTableKeyDown}
-        onFocus={() => {
-          if (activeRowIndex === null && rows.length > 0) setActiveRowIndex(0)
-        }}
-      >
+      <div className="rounded-md border border-border overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
