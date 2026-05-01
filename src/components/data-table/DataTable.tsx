@@ -315,7 +315,7 @@ export function DataTable<TData, TValue>({
                       ? 'bg-primary/10 hover:bg-primary/15'
                       : 'hover:bg-muted/40',
                     activeRowIndex === index &&
-                      'ring-1 ring-inset ring-primary/50'
+                    'ring-1 ring-inset ring-primary/50'
                   )}
                   onClick={() => {
                     setActiveRowIndex(index)
@@ -388,15 +388,15 @@ export function DataTable<TData, TValue>({
         createPortal(
           <div
             style={{ top: contextMenu.y, left: contextMenu.x }}
-            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1"
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4"
             onClick={(e) => e.stopPropagation()}
           >
             {rowActions.map((action, i) => (
               <button
                 key={i}
                 className={cn(
-                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent transition-colors text-left',
-                  action.destructive && 'text-destructive hover:text-destructive'
+                  'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
+                  action.destructive && 'text-destructive hover:text-destructive focus:text-destructive'
                 )}
                 onClick={() => {
                   action.onClick(getContextRows())
