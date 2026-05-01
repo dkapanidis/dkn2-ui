@@ -72,7 +72,7 @@ function Checkbox({
       onChange={onChange}
       onClick={onClick}
       className={cn(
-        'h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer',
+        'h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle',
         className
       )}
     />
@@ -264,7 +264,9 @@ export function DataTable<TData, TValue>({
                         : undefined
                     }
                   >
-                    {header.isPlaceholder ? null : (
+                    {header.isPlaceholder ? null : header.id === '_select' ? (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    ) : (
                       <div className="flex items-center gap-1">
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getCanSort() && (
