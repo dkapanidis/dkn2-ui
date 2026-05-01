@@ -18,6 +18,7 @@ import {
   CommandDialog,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
@@ -30,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export interface RowAction<TData> {
@@ -397,18 +399,29 @@ export function DataTable<TData, TValue>({
       {/* Selection bar */}
       {selectedCount > 0 &&
         createPortal(
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover px-2 py-1.5 shadow-lg">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover text-popover-foreground px-2 py-1.5 shadow-lg">
             <span className="px-2 text-sm font-medium">{selectedCount} selected</span>
-            <button
-              className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
-              onClick={() => table.resetRowSelection()}
-              title="Clear selection"
-            >
-              <XIcon className="h-3.5 w-3.5" />
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
+                    onClick={() => table.resetRowSelection()}
+                  >
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="flex items-center gap-1.5 bg-primary-foreground text-primary border border-primary/20">
+                  Clear selected
+                  <kbd className="rounded border border-primary/30 bg-primary/10 px-1 py-0.5 font-mono text-[10px] leading-none">
+                    Esc
+                  </kbd>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {rowActions?.length ? (
               <button
-                className="ml-1 flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-sm text-background hover:opacity-90 transition-opacity"
+                className="ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity"
                 onClick={() => setActionsOpen(true)}
               >
                 <CommandIcon className="h-3.5 w-3.5" />
@@ -427,6 +440,7 @@ export function DataTable<TData, TValue>({
           title="Row Actions"
           description="Choose an action to apply to selected rows"
         >
+          <CommandInput placeholder="Type a command or search..." />
           <CommandList>
             <CommandEmpty>No actions available.</CommandEmpty>
             <CommandGroup heading={selectedCount > 0 ? `Actions for ${selectedCount} row${selectedCount !== 1 ? 's' : ''}` : 'Actions'}>
