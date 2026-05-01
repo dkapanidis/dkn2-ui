@@ -13,5 +13,6 @@ export interface DataTableProps<TData, TValue> {
     searchPlaceholder?: string;
     rowActions?: RowAction<TData>[];
     getRowLabel?: (row: TData) => string;
+    pageSize?: number | 'all';
 }
-export declare function DataTable<TData, TValue>({ columns, data, searchColumn, searchPlaceholder, rowActions, getRowLabel, }: DataTableProps<TData, TValue>): import("react/jsx-runtime").JSX.Element;
+export declare function DataTable<TData, TValue>({ columns, data, searchColumn, searchPlaceholder, rowActions, getRowLabel, pageSize, }: DataTableProps<TData, TValue>): import("react/jsx-runtime").JSX.Element;
