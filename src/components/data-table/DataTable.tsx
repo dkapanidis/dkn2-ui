@@ -182,17 +182,21 @@ export function DataTable<TData, TValue>({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActiveRowIndex((prev) =>
-        prev === null ? rows.length - 1 : Math.max(prev - 1, 0)
+        prev === null ? 0 : Math.max(prev - 1, 0)
       )
-    } else if (e.key === ' ' && activeRowIndex !== null) {
+    } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
       e.preventDefault()
       rows[activeRowIndex]?.toggleSelected()
     } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length) {
       e.preventDefault()
       setActionsOpen(true)
     } else if (e.key === 'Escape') {
-      setActiveRowIndex(null)
       setContextMenu(null)
+      if (selectedCount > 0) {
+        table.resetRowSelection()
+      } else {
+        setActiveRowIndex(null)
+      }
     } else if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       table.toggleAllPageRowsSelected(true)
