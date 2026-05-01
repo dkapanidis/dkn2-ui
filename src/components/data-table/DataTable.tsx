@@ -1,6 +1,7 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -9,9 +10,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon, CommandIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -23,11 +32,51 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
+export interface RowAction<TData> {
+  label: string
+  icon?: React.ReactNode
+  onClick: (rows: TData[]) => void
+  destructive?: boolean
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   searchColumn?: string
   searchPlaceholder?: string
+  rowActions?: RowAction<TData>[]
+}
+
+function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+  onClick,
+  className,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onClick?: (e: React.MouseEvent<HTMLInputElement>) => void
+  className?: string
+}) {
+  const ref = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!indeterminate
+  }, [indeterminate])
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      onClick={onClick}
+      className={cn(
+        'h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer',
+        className
+      )}
+    />
+  )
 }
 
 export function DataTable<TData, TValue>({
@@ -35,24 +84,136 @@ export function DataTable<TData, TValue>({
   data,
   searchColumn,
   searchPlaceholder = 'Search...',
+  rowActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
+  const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number
+    y: number
+    rowIndex: number
+  } | null>(null)
+  const [actionsOpen, setActionsOpen] = React.useState(false)
+
+  const selectionColumn = React.useMemo<ColumnDef<TData, unknown>>(
+    () => ({
+      id: '_select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler() as React.ChangeEventHandler<HTMLInputElement>}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler() as React.ChangeEventHandler<HTMLInputElement>}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+      enableColumnFilter: false,
+      size: 36,
+    }),
+    []
+  )
+
+  const allColumns = React.useMemo<ColumnDef<TData, unknown>[]>(
+    () => [selectionColumn, ...(columns as ColumnDef<TData, unknown>[])],
+    [selectionColumn, columns]
+  )
 
   const table = useReactTable({
     data,
-    columns,
+    columns: allColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     state: {
       sorting,
       columnFilters,
+      rowSelection,
     },
   })
+
+  const rows = table.getRowModel().rows
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
+  const selectedCount = selectedRows.length
+
+  // Cmd+K opens actions
+  React.useEffect(() => {
+    if (!rowActions?.length) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setActionsOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [rowActions])
+
+  // Close context menu on outside interaction
+  React.useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [contextMenu])
+
+  const handleTableKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveRowIndex((prev) =>
+        prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveRowIndex((prev) =>
+        prev === null ? rows.length - 1 : Math.max(prev - 1, 0)
+      )
+    } else if (e.key === ' ' && activeRowIndex !== null) {
+      e.preventDefault()
+      rows[activeRowIndex]?.toggleSelected()
+    } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length) {
+      e.preventDefault()
+      setActionsOpen(true)
+    } else if (e.key === 'Escape') {
+      setActiveRowIndex(null)
+      setContextMenu(null)
+    } else if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      table.toggleAllPageRowsSelected(true)
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, rowIndex: number) => {
+    if (!rowActions?.length) return
+    e.preventDefault()
+    setActiveRowIndex(rowIndex)
+    setContextMenu({ x: e.clientX, y: e.clientY, rowIndex })
+  }
+
+  // Actions apply to: context menu row (if not in selection), otherwise all selected
+  const getContextRows = (): TData[] => {
+    if (contextMenu === null) return selectedRows
+    const contextRow = rows[contextMenu.rowIndex]
+    if (!contextRow) return selectedRows
+    if (selectedRows.length > 0 && contextRow.getIsSelected()) return selectedRows
+    return [contextRow.original]
+  }
 
   const pageIndex = table.getState().pagination.pageIndex
   const pageCount = table.getPageCount()
@@ -72,7 +233,14 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div className="rounded-md border border-border overflow-hidden">
+      <div
+        className="rounded-md border border-border overflow-hidden outline-none"
+        tabIndex={0}
+        onKeyDown={handleTableKeyDown}
+        onFocus={() => {
+          if (activeRowIndex === null && rows.length > 0) setActiveRowIndex(0)
+        }}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -80,18 +248,21 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
+                    style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                     className={cn(
                       'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
+                      header.id === '_select' && 'w-9 px-3',
                       header.column.getCanSort() && 'cursor-pointer select-none'
                     )}
-                    onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                    onClick={
+                      header.column.getCanSort()
+                        ? header.column.getToggleSortingHandler()
+                        : undefined
+                    }
                   >
                     {header.isPlaceholder ? null : (
                       <div className="flex items-center gap-1">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getCanSort() && (
                           <ArrowUpDownIcon
                             className={cn(
@@ -110,19 +281,34 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+            {rows.length ? (
+              rows.map((row, index) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className="hover:bg-muted/40 border-border/50 h-9"
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className={cn(
+                    'border-border/50 h-9 cursor-pointer select-none',
+                    row.getIsSelected()
+                      ? 'bg-primary/10 hover:bg-primary/15'
+                      : 'hover:bg-muted/40',
+                    activeRowIndex === index &&
+                      'ring-1 ring-inset ring-primary/50'
+                  )}
+                  onClick={() => {
+                    setActiveRowIndex(index)
+                    row.toggleSelected()
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, index)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-1.5 text-sm">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        'py-1.5 text-sm',
+                        cell.column.id === '_select' && 'w-9 px-3'
                       )}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -130,7 +316,7 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={allColumns.length}
                   className="h-24 text-center text-muted-foreground text-sm"
                 >
                   No results found.
@@ -143,7 +329,8 @@ export function DataTable<TData, TValue>({
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} row{table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
+          {table.getFilteredRowModel().rows.length} row
+          {table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
         </p>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
@@ -171,6 +358,89 @@ export function DataTable<TData, TValue>({
           </Button>
         </div>
       </div>
+
+      {/* Context menu */}
+      {contextMenu &&
+        rowActions?.length &&
+        createPortal(
+          <div
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {rowActions.map((action, i) => (
+              <button
+                key={i}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent transition-colors text-left',
+                  action.destructive && 'text-destructive hover:text-destructive'
+                )}
+                onClick={() => {
+                  action.onClick(getContextRows())
+                  setContextMenu(null)
+                }}
+              >
+                {action.icon}
+                {action.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+
+      {/* Selection bar */}
+      {selectedCount > 0 &&
+        createPortal(
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover px-2 py-1.5 shadow-lg">
+            <span className="px-2 text-sm font-medium">{selectedCount} selected</span>
+            <button
+              className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
+              onClick={() => table.resetRowSelection()}
+              title="Clear selection"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+            {rowActions?.length ? (
+              <button
+                className="ml-1 flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1 text-sm text-background hover:opacity-90 transition-opacity"
+                onClick={() => setActionsOpen(true)}
+              >
+                <CommandIcon className="h-3.5 w-3.5" />
+                Actions
+              </button>
+            ) : null}
+          </div>,
+          document.body
+        )}
+
+      {/* Actions command dialog */}
+      {rowActions?.length ? (
+        <CommandDialog
+          open={actionsOpen}
+          onOpenChange={setActionsOpen}
+          title="Row Actions"
+          description="Choose an action to apply to selected rows"
+        >
+          <CommandList>
+            <CommandEmpty>No actions available.</CommandEmpty>
+            <CommandGroup heading={selectedCount > 0 ? `Actions for ${selectedCount} row${selectedCount !== 1 ? 's' : ''}` : 'Actions'}>
+              {rowActions.map((action, i) => (
+                <CommandItem
+                  key={i}
+                  onSelect={() => {
+                    action.onClick(selectedRows)
+                    setActionsOpen(false)
+                  }}
+                  className={cn(action.destructive && 'text-destructive')}
+                >
+                  {action.icon}
+                  {action.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+      ) : null}
     </div>
   )
 }
