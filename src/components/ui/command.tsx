@@ -1,5 +1,6 @@
 import { type DialogProps } from '@radix-ui/react-dialog'
 import { Command as CommandPrimitive } from 'cmdk'
+import { motion } from 'framer-motion'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog'
@@ -27,7 +28,11 @@ const CommandDialog = ({
 }: DialogProps & { title?: string; description?: string }) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-lg" hideClose>
+      <DialogContent
+        className="overflow-hidden p-0 shadow-lg"
+        style={{ top: '25%', '--tw-translate-y': '0px' } as React.CSSProperties}
+        hideClose
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -60,13 +65,36 @@ CommandInput.displayName = CommandPrimitive.Input.displayName
 const CommandList = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
->(({ className, ...props }, ref) => (
-  <CommandPrimitive.List
-    ref={ref}
-    className={cn('max-h-[300px] overflow-y-auto overflow-x-hidden', className)}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const innerRef = React.useRef<HTMLDivElement>(null)
+  const [height, setHeight] = React.useState<number | undefined>(undefined)
+
+  React.useEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      setHeight(entry.contentRect.height)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <motion.div
+      animate={{ height }}
+      transition={{ duration: 0.10, ease: 'easeInOut' }}
+      style={{ overflow: 'hidden' }}
+    >
+      <div ref={innerRef}>
+        <CommandPrimitive.List
+          ref={ref}
+          className={cn('max-h-[300px] overflow-y-auto overflow-x-hidden', className)}
+          {...props}
+        />
+      </div>
+    </motion.div>
+  )
+})
 CommandList.displayName = CommandPrimitive.List.displayName
 
 const CommandEmpty = React.forwardRef<
