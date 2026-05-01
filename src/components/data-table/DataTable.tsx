@@ -48,6 +48,7 @@ export interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string
   rowActions?: RowAction<TData>[]
   getRowLabel?: (row: TData) => string
+  pageSize?: number | 'all'
 }
 
 function Checkbox({
@@ -89,7 +90,9 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = 'Search...',
   rowActions,
   getRowLabel,
+  pageSize = 10,
 }: DataTableProps<TData, TValue>) {
+  const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
@@ -141,6 +144,9 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
+    initialState: {
+      pagination: { pageSize: showAll ? Number.MAX_SAFE_INTEGER : pageSize },
+    },
     state: {
       sorting,
       columnFilters,
@@ -357,31 +363,33 @@ export function DataTable<TData, TValue>({
           {table.getFilteredRowModel().rows.length} row
           {table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            Page {pageIndex + 1} of {Math.max(pageCount, 1)}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeftIcon className="h-3.5 w-3.5" />
-            <span className="sr-only">Previous page</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-            <span className="sr-only">Next page</span>
-          </Button>
-        </div>
+        {!showAll && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Page {pageIndex + 1} of {Math.max(pageCount, 1)}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              <span className="sr-only">Previous page</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+              <span className="sr-only">Next page</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Context menu */}

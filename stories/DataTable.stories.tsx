@@ -212,6 +212,26 @@ export const WithRowActionsSmall: Story = {
   ),
 }
 
+export const NoPagination: Story = {
+  name: 'No Pagination',
+  parameters: {
+    docs: {
+      description: {
+        story: 'All rows shown at once with no pagination controls — useful for small or bounded datasets.',
+      },
+    },
+  },
+  render: () => (
+    <DataTable
+      columns={columns}
+      data={people}
+      searchColumn="name"
+      searchPlaceholder="Search by name..."
+      pageSize="all"
+    />
+  ),
+}
+
 export const WithDestructiveOnlyAction: Story = {
   name: 'Row Actions — Destructive Only',
   parameters: {
