@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
+import { MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
 import * as React from 'react'
+import { toast } from 'sonner'
+import { DataTable, type RowAction } from '../src/components/data-table'
 import { Badge } from '../src/components/ui/badge'
-import { DataTable } from '../src/components/data-table'
+import { Toaster } from '../src/components/ui/sonner'
 
 interface Person {
   id: string
@@ -124,5 +127,116 @@ export const SmallDataset: Story = {
       columns={columns}
       data={people.slice(0, 3)}
     />
+  ),
+}
+
+const rowActions: RowAction<Person>[] = [
+  {
+    label: 'Send email',
+    icon: <MailIcon />,
+    onClick: (rows) =>
+      toast.success(`Email sent to ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
+        description: rows.map((r) => r.name).join(', '),
+      }),
+  },
+  {
+    label: 'Activate',
+    icon: <UserCheckIcon />,
+    onClick: (rows) =>
+      toast.success(`Activated ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
+        description: rows.map((r) => r.name).join(', '),
+      }),
+  },
+  {
+    label: 'Change role to Admin',
+    icon: <ShieldIcon />,
+    onClick: (rows) =>
+      toast('Role updated', {
+        description: `${rows.length} user${rows.length !== 1 ? 's' : ''} promoted to Admin`,
+      }),
+  },
+  {
+    label: 'Delete',
+    icon: <TrashIcon />,
+    destructive: true,
+    onClick: (rows) =>
+      toast.error(`Deleted ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
+        description: rows.map((r) => r.name).join(', '),
+      }),
+  },
+]
+
+export const WithRowActions: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Select rows via checkboxes or click, then use the bottom bar, right-click context menu, or ⌘K to run actions.',
+      },
+    },
+  },
+  render: () => (
+    <>
+      <Toaster richColors />
+      <DataTable
+        columns={columns}
+        data={people}
+        searchColumn="name"
+        searchPlaceholder="Search by name..."
+        rowActions={rowActions}
+      />
+    </>
+  ),
+}
+
+export const WithRowActionsSmall: Story = {
+  name: 'Row Actions — Small Dataset',
+  parameters: {
+    docs: {
+      description: {
+        story: 'Row actions on a small dataset — useful for checking the selection bar and context menu without pagination.',
+      },
+    },
+  },
+  render: () => (
+    <>
+      <Toaster richColors />
+      <DataTable
+        columns={columns}
+        data={people.slice(0, 4)}
+        rowActions={rowActions}
+      />
+    </>
+  ),
+}
+
+export const WithDestructiveOnlyAction: Story = {
+  name: 'Row Actions — Destructive Only',
+  parameters: {
+    docs: {
+      description: {
+        story: 'A single destructive action — common for delete-only bulk operations.',
+      },
+    },
+  },
+  render: () => (
+    <>
+      <Toaster richColors />
+      <DataTable
+        columns={columns}
+        data={people.slice(0, 6)}
+        rowActions={[
+          {
+            label: 'Delete selected',
+            icon: <TrashIcon />,
+            destructive: true,
+            onClick: (rows) =>
+              toast.error(`Deleted ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
+                description: rows.map((r) => r.name).join(', '),
+              }),
+          },
+        ]}
+      />
+    </>
   ),
 }
