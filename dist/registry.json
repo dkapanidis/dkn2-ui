@@ -1,0 +1,37 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "dkn2-ui",
+  "homepage": "https://github.com/dkapanidis/dkn2-ui",
+  "items": [
+    {
+      "name": "data-table",
+      "type": "registry:component",
+      "title": "Data Table",
+      "description": "Linear-inspired data table with sort, search, and pagination."
+    },
+    {
+      "name": "side-menu",
+      "type": "registry:component",
+      "title": "Side Menu",
+      "description": "Collapsible sidebar navigation with icons and active states."
+    },
+    {
+      "name": "filter-bar",
+      "type": "registry:component",
+      "title": "Filter Bar",
+      "description": "Filter chips bar with search and dropdown filter picker."
+    },
+    {
+      "name": "command-menu",
+      "type": "registry:component",
+      "title": "Command Menu",
+      "description": "⌘K command palette with grouped items and keyboard shortcuts."
+    },
+    {
+      "name": "theme",
+      "type": "registry:component",
+      "title": "Theme",
+      "description": "ThemeProvider, useTheme hook, and ThemeToggle button."
+    }
+  ]
+}
