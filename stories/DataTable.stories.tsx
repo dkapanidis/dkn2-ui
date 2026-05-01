@@ -184,6 +184,7 @@ export const WithRowActions: Story = {
         searchColumn="name"
         searchPlaceholder="Search by name..."
         rowActions={rowActions}
+        getRowLabel={(p) => p.name}
       />
     </>
   ),
@@ -205,6 +206,7 @@ export const WithRowActionsSmall: Story = {
         columns={columns}
         data={people.slice(0, 4)}
         rowActions={rowActions}
+        getRowLabel={(p) => p.name}
       />
     </>
   ),

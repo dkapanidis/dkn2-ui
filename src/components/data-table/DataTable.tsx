@@ -47,6 +47,7 @@ export interface DataTableProps<TData, TValue> {
   searchColumn?: string
   searchPlaceholder?: string
   rowActions?: RowAction<TData>[]
+  getRowLabel?: (row: TData) => string
 }
 
 function Checkbox({
@@ -87,6 +88,7 @@ export function DataTable<TData, TValue>({
   searchColumn,
   searchPlaceholder = 'Search...',
   rowActions,
+  getRowLabel,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -149,6 +151,21 @@ export function DataTable<TData, TValue>({
   const rows = table.getRowModel().rows
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
   const selectedCount = selectedRows.length
+
+  // Rows that actions apply to: explicit selection, or the keyboard-navigated row as implicit target
+  const effectiveRows: TData[] =
+    selectedCount > 0
+      ? selectedRows
+      : activeRowIndex !== null && rows[activeRowIndex]
+        ? [rows[activeRowIndex].original]
+        : []
+
+  const actionsHeading = (() => {
+    if (effectiveRows.length === 0) return 'Actions'
+    if (effectiveRows.length === 1)
+      return getRowLabel ? getRowLabel(effectiveRows[0]) : '1 row'
+    return `${effectiveRows.length} rows`
+  })()
 
   // Cmd+K opens actions
   React.useEffect(() => {
@@ -443,12 +460,12 @@ export function DataTable<TData, TValue>({
           <CommandInput placeholder="Type a command or search..." />
           <CommandList>
             <CommandEmpty>No actions available.</CommandEmpty>
-            <CommandGroup heading={selectedCount > 0 ? `Actions for ${selectedCount} row${selectedCount !== 1 ? 's' : ''}` : 'Actions'}>
+            <CommandGroup heading={actionsHeading}>
               {rowActions.map((action, i) => (
                 <CommandItem
                   key={i}
                   onSelect={() => {
-                    action.onClick(selectedRows)
+                    action.onClick(effectiveRows)
                     setActionsOpen(false)
                   }}
                   className={cn(action.destructive && 'text-destructive')}
