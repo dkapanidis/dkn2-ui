@@ -436,7 +436,7 @@ export function DataTable<TData, TValue>({
                     <XIcon className="h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="flex items-center gap-1.5 bg-primary-foreground text-primary border border-primary/20">
+                <TooltipContent className="flex items-center gap-1.5 border border-primary/20">
                   Clear selected
                   <kbd className="rounded border border-primary/30 bg-primary/10 px-1 py-0.5 font-mono text-[10px] leading-none">
                     Esc
