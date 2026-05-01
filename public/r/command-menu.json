@@ -1,0 +1,28 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "command-menu",
+  "type": "registry:component",
+  "title": "Command Menu",
+  "description": "⌘K command palette with grouped items and keyboard shortcuts.",
+  "dependencies": [
+    "cmdk"
+  ],
+  "registryDependencies": [
+    "command",
+    "dialog"
+  ],
+  "files": [
+    {
+      "path": "components/command-menu/CommandMenu.tsx",
+      "content": "import { type LucideIcon } from 'lucide-react'\nimport * as React from 'react'\nimport {\n  CommandDialog,\n  CommandEmpty,\n  CommandGroup,\n  CommandInput,\n  CommandItem,\n  CommandList,\n  CommandSeparator,\n  CommandShortcut,\n} from '@/components/ui/command'\n\nexport interface CommandMenuItemDef {\n  id: string\n  label: string\n  icon?: LucideIcon\n  keywords?: string[]\n  shortcut?: string\n  onSelect: () => void\n}\n\nexport interface CommandMenuGroup {\n  label: string\n  items: CommandMenuItemDef[]\n}\n\nexport interface CommandMenuProps {\n  groups: CommandMenuGroup[]\n  placeholder?: string\n  open?: boolean\n  onOpenChange?: (open: boolean) => void\n  triggerShortcut?: boolean\n}\n\nexport function CommandMenu({\n  groups,\n  placeholder = 'Type a command or search...',\n  open: controlledOpen,\n  onOpenChange,\n  triggerShortcut = true,\n}: CommandMenuProps) {\n  const [internalOpen, setInternalOpen] = React.useState(false)\n\n  const isControlled = controlledOpen !== undefined\n  const open = isControlled ? controlledOpen : internalOpen\n\n  const setOpen = React.useCallback(\n    (value: boolean) => {\n      if (!isControlled) setInternalOpen(value)\n      onOpenChange?.(value)\n    },\n    [isControlled, onOpenChange]\n  )\n\n  React.useEffect(() => {\n    if (!triggerShortcut) return\n    const down = (e: KeyboardEvent) => {\n      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {\n        e.preventDefault()\n        setOpen(!open)\n      }\n    }\n    document.addEventListener('keydown', down)\n    return () => document.removeEventListener('keydown', down)\n  }, [triggerShortcut, open, setOpen])\n\n  return (\n    <CommandDialog open={open} onOpenChange={setOpen}>\n      <CommandInput placeholder={placeholder} />\n      <CommandList>\n        <CommandEmpty>No results found.</CommandEmpty>\n        {groups.map((group, groupIdx) => (\n          <React.Fragment key={group.label}>\n            {groupIdx > 0 && <CommandSeparator />}\n            <CommandGroup heading={group.label}>\n              {group.items.map((item) => {\n                const Icon = item.icon\n                return (\n                  <CommandItem\n                    key={item.id}\n                    value={[item.label, ...(item.keywords ?? [])].join(' ')}\n                    onSelect={() => {\n                      item.onSelect()\n                      setOpen(false)\n                    }}\n                  >\n                    {Icon && <Icon className=\"mr-2 h-4 w-4 opacity-70\" />}\n                    <span>{item.label}</span>\n                    {item.shortcut && (\n                      <CommandShortcut>{item.shortcut}</CommandShortcut>\n                    )}\n                  </CommandItem>\n                )\n              })}\n            </CommandGroup>\n          </React.Fragment>\n        ))}\n      </CommandList>\n    </CommandDialog>\n  )\n}\n",
+      "type": "registry:component",
+      "target": ""
+    },
+    {
+      "path": "components/command-menu/index.ts",
+      "content": "export { CommandMenu } from './CommandMenu'\nexport type { CommandMenuProps, CommandMenuGroup, CommandMenuItemDef } from './CommandMenu'\n",
+      "type": "registry:component",
+      "target": ""
+    }
+  ]
+}
