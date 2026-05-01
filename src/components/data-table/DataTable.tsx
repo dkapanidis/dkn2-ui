@@ -203,8 +203,9 @@ export function DataTable<TData, TValue>({
         e.preventDefault()
         setActionsOpen(true)
       } else if (e.key === 'Escape') {
-        setContextMenu(null)
-        if (selectedCount > 0) {
+        if (contextMenu) {
+          setContextMenu(null)
+        } else if (selectedCount > 0) {
           table.resetRowSelection()
         } else {
           setActiveRowIndex(null)
@@ -213,7 +214,7 @@ export function DataTable<TData, TValue>({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [rowActions, rows, activeRowIndex, selectedCount, table])
+  }, [rowActions, rows, activeRowIndex, selectedCount, contextMenu, table])
 
   // Close context menu on outside interaction
   React.useEffect(() => {
@@ -321,6 +322,7 @@ export function DataTable<TData, TValue>({
                     setActiveRowIndex(index)
                     row.toggleSelected()
                   }}
+                  onMouseEnter={() => setActiveRowIndex(index)}
                   onContextMenu={(e) => handleContextMenu(e, index)}
                 >
                   {row.getVisibleCells().map((cell) => (
