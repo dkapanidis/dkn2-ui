@@ -425,7 +425,7 @@ export function DataTable<TData, TValue>({
         createPortal(
           <div
             style={{ top: contextMenu.y, left: contextMenu.x }}
-            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4"
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
             onClick={(e) => e.stopPropagation()}
           >
             {rowActions.map((action, i) => (
