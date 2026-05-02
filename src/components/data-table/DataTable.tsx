@@ -340,8 +340,8 @@ export function DataTable<TData, TValue>({
                   key={row.id}
                   data-state={isSelected ? 'selected' : undefined}
                   className={cn(
-                    'h-9 cursor-pointer select-none',
-                    isSelected ? 'bg-selected/10 hover:bg-selected/15' : 'hover:bg-muted/40',
+                    'h-6 cursor-pointer select-none',
+                    'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
                     isActive && 'row-ring',
                   )}
                   onClick={() => {
