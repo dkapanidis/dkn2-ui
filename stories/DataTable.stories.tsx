@@ -5,6 +5,15 @@ import * as React from 'react'
 import { toast } from 'sonner'
 import { DataTable, type RowAction } from '../src/components/data-table'
 import { Badge } from '../src/components/ui/badge'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '../src/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
 import { Toaster } from '../src/components/ui/sonner'
 
 interface Person {
@@ -15,47 +24,122 @@ interface Person {
   status: 'active' | 'inactive' | 'pending'
 }
 
-const columns: ColumnDef<Person>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Name',
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue('name')}</span>
-    ),
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue('email')}</span>
-    ),
-  },
-  {
-    accessorKey: 'role',
-    header: 'Role',
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const status = row.getValue('status') as Person['status']
-      return (
-        <Badge
-          variant={
-            status === 'active'
-              ? 'default'
-              : status === 'pending'
-              ? 'secondary'
-              : 'outline'
-          }
-          className="capitalize"
+const STATUS_OPTIONS: Person['status'][] = ['active', 'inactive', 'pending']
+
+function StatusBadge({ status }: { status: Person['status'] }) {
+  return (
+    <Badge
+      variant={
+        status === 'active'
+          ? 'default'
+          : status === 'pending'
+          ? 'secondary'
+          : 'outline'
+      }
+      className="capitalize"
+    >
+      {status}
+    </Badge>
+  )
+}
+
+function StatusCell({
+  status,
+  onChange,
+}: {
+  status: Person['status']
+  onChange: (next: Person['status']) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {status}
-        </Badge>
-      )
+          <StatusBadge status={status} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="p-0 w-48"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Command>
+          <CommandInput placeholder="Filter status..." />
+          <CommandList>
+            <CommandEmpty>No status found.</CommandEmpty>
+            <CommandGroup>
+              {STATUS_OPTIONS.map((opt) => (
+                <CommandItem
+                  key={opt}
+                  value={opt}
+                  onSelect={() => {
+                    onChange(opt)
+                    setOpen(false)
+                  }}
+                >
+                  <StatusBadge status={opt} />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function makeColumns(
+  onStatusChange: (id: string, status: Person['status']) => void
+): ColumnDef<Person>[] {
+  return [
+    {
+      accessorKey: 'name',
+      header: 'Name',
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue('name')}</span>
+      ),
     },
-  },
-]
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{row.getValue('email')}</span>
+      ),
+    },
+    {
+      accessorKey: 'role',
+      header: 'Role',
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <StatusCell
+          status={row.getValue('status') as Person['status']}
+          onChange={(next) => onStatusChange(row.original.id, next)}
+        />
+      ),
+    },
+  ]
+}
+
+function useStatefulPeople(initial: Person[]) {
+  const [data, setData] = React.useState(initial)
+  const columns = React.useMemo(
+    () =>
+      makeColumns((id, status) =>
+        setData((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, status } : p))
+        )
+      ),
+    []
+  )
+  return { data, columns }
+}
 
 const people: Person[] = [
   { id: '1', name: 'Alice Johnson', email: 'alice@example.com', role: 'Engineer', status: 'active' },
@@ -89,45 +173,52 @@ export default meta
 type Story = StoryObj<typeof DataTable>
 
 export const Default: Story = {
-  render: () => (
-    <DataTable
-      columns={columns}
-      data={people}
-      searchColumn="name"
-      searchPlaceholder="Search by name..."
-    />
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people)
+    return (
+      <DataTable
+        columns={columns}
+        data={data}
+        searchColumn="name"
+        searchPlaceholder="Search by name..."
+      />
+    )
+  },
 }
 
 export const WithSearch: Story = {
-  render: () => (
-    <DataTable
-      columns={columns}
-      data={people}
-      searchColumn="email"
-      searchPlaceholder="Search by email..."
-    />
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people)
+    return (
+      <DataTable
+        columns={columns}
+        data={data}
+        searchColumn="email"
+        searchPlaceholder="Search by email..."
+      />
+    )
+  },
 }
 
 export const EmptyState: Story = {
-  render: () => (
-    <DataTable
-      columns={columns}
-      data={[]}
-      searchColumn="name"
-      searchPlaceholder="Search..."
-    />
-  ),
+  render: () => {
+    const { columns } = useStatefulPeople(people)
+    return (
+      <DataTable
+        columns={columns}
+        data={[]}
+        searchColumn="name"
+        searchPlaceholder="Search..."
+      />
+    )
+  },
 }
 
 export const SmallDataset: Story = {
-  render: () => (
-    <DataTable
-      columns={columns}
-      data={people.slice(0, 3)}
-    />
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people.slice(0, 3))
+    return <DataTable columns={columns} data={data} />
+  },
 }
 
 const rowActions: RowAction<Person>[] = [
@@ -175,19 +266,22 @@ export const WithRowActions: Story = {
       },
     },
   },
-  render: () => (
-    <>
-      <Toaster richColors />
-      <DataTable
-        columns={columns}
-        data={people}
-        searchColumn="name"
-        searchPlaceholder="Search by name..."
-        rowActions={rowActions}
-        getRowLabel={(p) => p.name}
-      />
-    </>
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people)
+    return (
+      <>
+        <Toaster richColors />
+        <DataTable
+          columns={columns}
+          data={data}
+          searchColumn="name"
+          searchPlaceholder="Search by name..."
+          rowActions={rowActions}
+          getRowLabel={(p) => p.name}
+        />
+      </>
+    )
+  },
 }
 
 export const WithRowActionsSmall: Story = {
@@ -199,17 +293,20 @@ export const WithRowActionsSmall: Story = {
       },
     },
   },
-  render: () => (
-    <>
-      <Toaster richColors />
-      <DataTable
-        columns={columns}
-        data={people.slice(0, 4)}
-        rowActions={rowActions}
-        getRowLabel={(p) => p.name}
-      />
-    </>
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people.slice(0, 4))
+    return (
+      <>
+        <Toaster richColors />
+        <DataTable
+          columns={columns}
+          data={data}
+          rowActions={rowActions}
+          getRowLabel={(p) => p.name}
+        />
+      </>
+    )
+  },
 }
 
 export const NoPagination: Story = {
@@ -221,15 +318,18 @@ export const NoPagination: Story = {
       },
     },
   },
-  render: () => (
-    <DataTable
-      columns={columns}
-      data={people}
-      searchColumn="name"
-      searchPlaceholder="Search by name..."
-      pageSize="all"
-    />
-  ),
+  render: () => {
+    const { data, columns } = useStatefulPeople(people)
+    return (
+      <DataTable
+        columns={columns}
+        data={data}
+        searchColumn="name"
+        searchPlaceholder="Search by name..."
+        pageSize="all"
+      />
+    )
+  },
 }
 
 export const WithDestructiveOnlyAction: Story = {
@@ -241,24 +341,27 @@ export const WithDestructiveOnlyAction: Story = {
       },
     },
   },
-  render: () => (
-    <>
-      <Toaster richColors />
-      <DataTable
-        columns={columns}
-        data={people.slice(0, 6)}
-        rowActions={[
-          {
-            label: 'Delete selected',
-            icon: <TrashIcon />,
-            destructive: true,
-            onClick: (rows) =>
-              toast.error(`Deleted ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
-                description: rows.map((r) => r.name).join(', '),
-              }),
-          },
-        ]}
-      />
-    </>
-  ),
+  render: () => {
+    const { data, columns: baseColumns } = useStatefulPeople(people.slice(0, 6))
+    return (
+      <>
+        <Toaster richColors />
+        <DataTable
+          columns={baseColumns}
+          data={data}
+          rowActions={[
+            {
+              label: 'Delete selected',
+              icon: <TrashIcon />,
+              destructive: true,
+              onClick: (rows) =>
+                toast.error(`Deleted ${rows.length} user${rows.length !== 1 ? 's' : ''}`, {
+                  description: rows.map((r) => r.name).join(', '),
+                }),
+            },
+          ]}
+        />
+      </>
+    )
+  },
 }
