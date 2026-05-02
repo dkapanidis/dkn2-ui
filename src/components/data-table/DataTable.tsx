@@ -68,18 +68,31 @@ function Checkbox({
   React.useEffect(() => {
     if (ref.current) ref.current.indeterminate = !!indeterminate
   }, [indeterminate])
+  const active = checked || indeterminate
   return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
+    <span
+      className={cn('inline-flex items-center justify-center cursor-pointer group', className)}
       onClick={onClick}
-      className={cn(
-        'h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer align-middle',
-        className
-      )}
-    />
+    >
+      <input ref={ref} type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <span
+        className={cn(
+          'h-3.5 w-3.5 rounded-xs border flex items-center justify-center transition-colors',
+          active
+            ? 'bg-selected border-selected'
+            : 'bg-transparent border-foreground/35 group-hover:border-selected group-hover:bg-selected/20'
+        )}
+      >
+        {indeterminate && (
+          <span className="block h-px w-2 bg-selected-foreground" />
+        )}
+        {checked && !indeterminate && (
+          <svg viewBox="0 0 10 8" className="h-2 w-2.5 fill-none stroke-selected-foreground stroke-[2]">
+            <polyline points="1,4 4,7 9,1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+    </span>
   )
 }
 
@@ -107,25 +120,29 @@ export function DataTable<TData, TValue>({
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown>>(
     () => ({
       id: '_select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler() as React.ChangeEventHandler<HTMLInputElement>}
-        />
-      ),
+      header: () => null,
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onChange={row.getToggleSelectedHandler() as React.ChangeEventHandler<HTMLInputElement>}
-          onClick={(e) => e.stopPropagation()}
-        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center">
+              <Checkbox
+                checked={row.getIsSelected()}
+                onChange={row.getToggleSelectedHandler() as React.ChangeEventHandler<HTMLInputElement>}
+                onClick={(e) => { e.stopPropagation(); row.toggleSelected() }}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="flex items-center gap-1.5">
+            Select row
+            <kbd className="rounded border border-selected/30 bg-selected/10 px-1 py-0.5 font-mono text-[10px] leading-none">x</kbd>
+          </TooltipContent>
+        </Tooltip>
       ),
       enableSorting: false,
       enableColumnFilter: false,
-      size: 36,
+      size: 16,
     }),
-    []
+    [getRowLabel]
   )
 
   const allColumns = React.useMemo<ColumnDef<TData, unknown>[]>(
@@ -254,6 +271,7 @@ export function DataTable<TData, TValue>({
   const pageCount = table.getPageCount()
 
   return (
+    <TooltipProvider>
     <div className="flex flex-col gap-3">
       {searchColumn && (
         <div className="flex items-center">
@@ -268,18 +286,18 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div className="rounded-md border border-border overflow-hidden">
-        <Table>
+      <div>
+        <Table className="border-separate border-spacing-0">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted/30 hover:bg-muted/30">
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
                     style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                     className={cn(
                       'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
-                      header.id === '_select' && 'w-9 px-3',
+                      header.id === '_select' && 'w-6 !pl-2 !pr-0',
                       header.column.getCanSort() && 'cursor-pointer select-none'
                     )}
                     onClick={
@@ -312,17 +330,19 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {rows.length ? (
-              rows.map((row, index) => (
+              rows.map((row, index) => {
+                const isSelected = row.getIsSelected()
+                const prevSelected = rows[index - 1]?.getIsSelected() ?? false
+                const nextSelected = rows[index + 1]?.getIsSelected() ?? false
+                const isActive = activeRowIndex === index
+                return (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  data-state={isSelected ? 'selected' : undefined}
                   className={cn(
-                    'border-border/50 h-9 cursor-pointer select-none',
-                    row.getIsSelected()
-                      ? 'bg-primary/10 hover:bg-primary/15'
-                      : 'hover:bg-muted/40',
-                    activeRowIndex === index &&
-                    'ring-1 ring-inset ring-primary/50'
+                    'h-9 cursor-pointer select-none',
+                    isSelected ? 'bg-selected/10 hover:bg-selected/15' : 'hover:bg-muted/40',
+                    isActive && 'row-ring',
                   )}
                   onClick={() => {
                     setActiveRowIndex(index)
@@ -336,14 +356,21 @@ export function DataTable<TData, TValue>({
                       key={cell.id}
                       className={cn(
                         'py-1.5 text-sm',
-                        cell.column.id === '_select' && 'w-9 px-3'
+                        cell.column.id === '_select' && 'w-6 !pl-2 !pr-0'
                       )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {cell.column.id === '_select' ? (
+                        <span className={cn('flex items-center', !row.getIsSelected() && activeRowIndex !== index && 'opacity-0')}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </span>
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
@@ -487,5 +514,6 @@ export function DataTable<TData, TValue>({
         </CommandDialog>
       ) : null}
     </div>
+    </TooltipProvider>
   )
 }
