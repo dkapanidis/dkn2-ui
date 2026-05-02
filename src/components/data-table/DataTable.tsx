@@ -337,7 +337,7 @@ export function DataTable<TData, TValue>({
                 const isActive = activeRowIndex === index
                 return (
                 <TableRow
-                  key={row.id}
+                  key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
                   data-state={isSelected ? 'selected' : undefined}
                   className={cn(
                     'h-6 cursor-pointer select-none',
