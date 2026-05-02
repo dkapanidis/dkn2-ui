@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
-import { MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
+import { Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { DataTable, type RowAction } from '../src/components/data-table'
@@ -27,20 +27,14 @@ interface Person {
 const STATUS_OPTIONS: Person['status'][] = ['active', 'inactive', 'pending']
 
 function StatusBadge({ status }: { status: Person['status'] }) {
-  return (
-    <Badge
-      variant={
-        status === 'active'
-          ? 'default'
-          : status === 'pending'
-          ? 'secondary'
-          : 'outline'
-      }
-      className="capitalize"
-    >
-      {status}
-    </Badge>
-  )
+  switch (status) {
+    case 'active':
+      return <Badge className="h-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</Badge>
+    case 'inactive':
+      return <Badge className="h-4 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-400">Inactive</Badge>
+    case 'pending':
+      return <Badge className="h-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Pending</Badge>
+  }
 }
 
 function StatusCell({
@@ -63,12 +57,14 @@ function StatusCell({
         </button>
       </PopoverTrigger>
       <PopoverContent
+        side="left"
         align="start"
-        className="p-0 w-48"
+        sideOffset={6}
+        className="p-0 w-48 border border-zinc-300 dark:border-zinc-600 duration-100"
         onClick={(e) => e.stopPropagation()}
       >
         <Command>
-          <CommandInput placeholder="Filter status..." />
+          <CommandInput placeholder="Filter status..." className="h-8 text-xs" />
           <CommandList>
             <CommandEmpty>No status found.</CommandEmpty>
             <CommandGroup>
@@ -76,6 +72,7 @@ function StatusCell({
                 <CommandItem
                   key={opt}
                   value={opt}
+                  className="py-1 text-xs"
                   onSelect={() => {
                     onChange(opt)
                     setOpen(false)
