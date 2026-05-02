@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils'
 export interface RowAction<TData> {
   label: string
   icon?: React.ReactNode
+  shortcut?: string
   onClick?: (rows: TData[]) => void
   subActions?: RowAction<TData>[]
   destructive?: boolean
@@ -219,7 +220,7 @@ export function DataTable<TData, TValue>({
       ) return
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        if (!rowActions?.length) return
+        if (!rowActions?.length || !effectiveRows.length) return
         e.preventDefault()
         setActionsOpen(true)
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
@@ -240,7 +241,7 @@ export function DataTable<TData, TValue>({
       } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
         e.preventDefault()
         rows[activeRowIndex]?.toggleSelected()
-      } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length) {
+      } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length && effectiveRows.length) {
         e.preventDefault()
         setActionsOpen(true)
       } else if (e.key === 'Escape') {
@@ -250,6 +251,18 @@ export function DataTable<TData, TValue>({
           table.resetRowSelection()
         } else {
           setActiveRowIndex(null)
+        }
+      } else if (rowActions?.length && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const matched = rowActions.find((a) => a.shortcut === e.key)
+        if (matched) {
+          e.preventDefault()
+          if (!effectiveRows.length) return
+          if (matched.subActions?.length) {
+            setActionPage(matched)
+            setActionsOpen(true)
+          } else {
+            matched.onClick?.(effectiveRows)
+          }
         }
       }
     }
@@ -477,7 +490,12 @@ export function DataTable<TData, TValue>({
                 >
                   {action.icon}
                   <span className="flex-1">{action.label}</span>
-                  {action.subActions?.length ? <ChevronRightIcon className="ml-auto h-3 w-3 opacity-50" /> : null}
+                  {action.shortcut && (
+                    <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">
+                      {action.shortcut}
+                    </kbd>
+                  )}
+                  {action.subActions?.length ? <ChevronRightIcon className="h-3 w-3 opacity-50" /> : null}
                 </button>
               ))}
             </div>
@@ -567,7 +585,12 @@ export function DataTable<TData, TValue>({
           <CommandList>
             <CommandEmpty>No actions available.</CommandEmpty>
             {actionPage ? (
-              <CommandGroup heading={actionPage.label}>
+              <CommandGroup heading={
+                <span className="flex items-center justify-between w-full">
+                  <span>{actionPage.label}</span>
+                  <span className="font-normal text-muted-foreground">{actionsHeading}</span>
+                </span>
+              }>
                 {actionPage.subActions!.map((sub, i) => (
                   <CommandItem
                     key={i}
@@ -600,8 +623,13 @@ export function DataTable<TData, TValue>({
                   >
                     {action.icon}
                     <span className="flex-1">{action.label}</span>
+                    {action.shortcut && (
+                      <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">
+                        {action.shortcut}
+                      </kbd>
+                    )}
                     {action.subActions?.length ? (
-                      <ChevronRightIcon className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                      <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     ) : null}
                   </CommandItem>
                 ))}

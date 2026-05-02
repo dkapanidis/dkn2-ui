@@ -132,8 +132,9 @@ function useStatefulPeople(initial: Person[]) {
   const rowActionsWithStatus = React.useMemo<RowAction<Person>[]>(() => [
     ...rowActions,
     {
-      label: 'Change Status',
+      label: 'Status',
       icon: <CircleIcon />,
+      shortcut: 'c',
       subActions: STATUS_OPTIONS.map((s) => ({
         label: s.charAt(0).toUpperCase() + s.slice(1),
         onClick: (rows) => {
