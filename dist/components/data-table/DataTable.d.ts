@@ -3,7 +3,9 @@ import * as React from 'react';
 export interface RowAction<TData> {
     label: string;
     icon?: React.ReactNode;
-    onClick: (rows: TData[]) => void;
+    shortcut?: string;
+    onClick?: (rows: TData[]) => void;
+    subActions?: RowAction<TData>[];
     destructive?: boolean;
 }
 export interface DataTableProps<TData, TValue> {
