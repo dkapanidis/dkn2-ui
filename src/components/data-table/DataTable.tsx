@@ -110,6 +110,7 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
+  const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
@@ -211,11 +212,13 @@ export function DataTable<TData, TValue>({
         table.toggleAllPageRowsSelected(true)
       } else if (e.key === 'ArrowDown') {
         e.preventDefault()
+        setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
         )
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
+        setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.max(prev - 1, 0)
         )
@@ -342,13 +345,17 @@ export function DataTable<TData, TValue>({
                   className={cn(
                     'h-6 cursor-pointer select-none',
                     'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
-                    isActive && 'row-ring',
+                    isActive && activeRowSource === 'keyboard' && 'row-ring',
                   )}
                   onClick={() => {
+                    setActiveRowSource('mouse')
                     setActiveRowIndex(index)
                     row.toggleSelected()
                   }}
-                  onMouseEnter={() => setActiveRowIndex(index)}
+                  onMouseEnter={() => {
+                    setActiveRowSource('mouse')
+                    setActiveRowIndex(index)
+                  }}
                   onContextMenu={(e) => handleContextMenu(e, index)}
                 >
                   {row.getVisibleCells().map((cell) => (
