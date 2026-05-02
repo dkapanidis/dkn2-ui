@@ -60,7 +60,7 @@ function StatusCell({
         side="left"
         align="start"
         sideOffset={6}
-        className="p-0 w-48 border border-zinc-300 dark:border-zinc-600 duration-100"
+        className="p-0 w-48 border border-zinc-300 dark:border-zinc-600 [--tw-animate-duration:100ms]"
         onClick={(e) => e.stopPropagation()}
       >
         <Command>
