@@ -80,7 +80,7 @@ function Checkbox({
           'h-3.5 w-3.5 rounded-xs border flex items-center justify-center transition-colors',
           active
             ? 'bg-selected border-selected'
-            : 'bg-transparent border-foreground/35 group-hover:border-selected group-hover:bg-selected/20'
+            : 'border-foreground/35 group-hover:border-selected'
         )}
       >
         {indeterminate && (
