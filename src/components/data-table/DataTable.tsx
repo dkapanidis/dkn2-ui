@@ -37,7 +37,8 @@ import { cn } from '@/lib/utils'
 export interface RowAction<TData> {
   label: string
   icon?: React.ReactNode
-  onClick: (rows: TData[]) => void
+  onClick?: (rows: TData[]) => void
+  subActions?: RowAction<TData>[]
   destructive?: boolean
 }
 
@@ -116,7 +117,21 @@ export function DataTable<TData, TValue>({
     y: number
     rowIndex: number
   } | null>(null)
+  const [contextSub, setContextSub] = React.useState<{
+    action: RowAction<TData>
+    x: number
+    y: number
+  } | null>(null)
   const [actionsOpen, setActionsOpen] = React.useState(false)
+  const [actionPage, setActionPage] = React.useState<RowAction<TData> | null>(null)
+
+  // Reset sub-page after the close animation finishes, not during, to avoid flashes
+  React.useEffect(() => {
+    if (!actionsOpen) {
+      const t = setTimeout(() => setActionPage(null), 200)
+      return () => clearTimeout(t)
+    }
+  }, [actionsOpen])
 
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown>>(
     () => ({
@@ -244,8 +259,8 @@ export function DataTable<TData, TValue>({
 
   // Close context menu on outside interaction
   React.useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
+    if (!contextMenu) { setContextSub(null); return }
+    const close = () => { setContextMenu(null); setContextSub(null) }
     window.addEventListener('click', close)
     window.addEventListener('scroll', close, true)
     return () => {
@@ -430,28 +445,68 @@ export function DataTable<TData, TValue>({
       {contextMenu &&
         rowActions?.length &&
         createPortal(
-          <div
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-            className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {rowActions.map((action, i) => (
-              <button
-                key={i}
-                className={cn(
-                  'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
-                  action.destructive && 'text-destructive hover:text-destructive focus:text-destructive'
-                )}
-                onClick={() => {
-                  action.onClick(getContextRows())
-                  setContextMenu(null)
-                }}
+          <>
+            <div
+              style={{ top: contextMenu.y, left: contextMenu.x }}
+              className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {rowActions.map((action, i) => (
+                <button
+                  key={i}
+                  className={cn(
+                    'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
+                    action.destructive && 'text-destructive hover:text-destructive focus:text-destructive',
+                    contextSub?.action === action && 'bg-accent'
+                  )}
+                  onMouseEnter={(e) => {
+                    if (action.subActions?.length) {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                      setContextSub({ action, x: rect.right + 4, y: rect.top })
+                    } else {
+                      setContextSub(null)
+                    }
+                  }}
+                  onClick={() => {
+                    if (!action.subActions?.length) {
+                      action.onClick?.(getContextRows())
+                      setContextMenu(null)
+                      setContextSub(null)
+                    }
+                  }}
+                >
+                  {action.icon}
+                  <span className="flex-1">{action.label}</span>
+                  {action.subActions?.length ? <ChevronRightIcon className="ml-auto h-3 w-3 opacity-50" /> : null}
+                </button>
+              ))}
+            </div>
+            {contextSub && (
+              <div
+                style={{ top: contextSub.y, left: contextSub.x }}
+                className="fixed z-50 min-w-[140px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
+                onClick={(e) => e.stopPropagation()}
               >
-                {action.icon}
-                {action.label}
-              </button>
-            ))}
-          </div>,
+                {contextSub.action.subActions!.map((sub, i) => (
+                  <button
+                    key={i}
+                    className={cn(
+                      'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
+                      sub.destructive && 'text-destructive hover:text-destructive focus:text-destructive'
+                    )}
+                    onClick={() => {
+                      sub.onClick?.(getContextRows())
+                      setContextMenu(null)
+                      setContextSub(null)
+                    }}
+                  >
+                    {sub.icon}
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>,
           document.body
         )}
 
@@ -496,27 +551,62 @@ export function DataTable<TData, TValue>({
         <CommandDialog
           open={actionsOpen}
           onOpenChange={setActionsOpen}
+          commandKey={actionPage?.label ?? 'root'}
           title="Row Actions"
           description="Choose an action to apply to selected rows"
         >
-          <CommandInput placeholder="Type a command or search..." />
+          <CommandInput
+            autoFocus
+            placeholder={actionPage ? `Search ${actionPage.label.toLowerCase()}...` : 'Type a command or search...'}
+            onKeyDown={(e) => {
+              if (e.key === 'Backspace' && (e.target as HTMLInputElement).value === '') {
+                setActionPage(null)
+              }
+            }}
+          />
           <CommandList>
             <CommandEmpty>No actions available.</CommandEmpty>
-            <CommandGroup heading={actionsHeading}>
-              {rowActions.map((action, i) => (
-                <CommandItem
-                  key={i}
-                  onSelect={() => {
-                    action.onClick(effectiveRows)
-                    setActionsOpen(false)
-                  }}
-                  className={cn(action.destructive && 'text-destructive')}
-                >
-                  {action.icon}
-                  {action.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {actionPage ? (
+              <CommandGroup heading={actionPage.label}>
+                {actionPage.subActions!.map((sub, i) => (
+                  <CommandItem
+                    key={i}
+                    onSelect={() => {
+                      sub.onClick?.(effectiveRows)
+                      setActionsOpen(false)
+                      setActionPage(null)
+                    }}
+                    className={cn(sub.destructive && 'text-destructive')}
+                  >
+                    {sub.icon}
+                    {sub.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : (
+              <CommandGroup heading={actionsHeading}>
+                {rowActions.map((action, i) => (
+                  <CommandItem
+                    key={i}
+                    onSelect={() => {
+                      if (action.subActions?.length) {
+                        setActionPage(action)
+                      } else {
+                        action.onClick?.(effectiveRows)
+                        setActionsOpen(false)
+                      }
+                    }}
+                    className={cn(action.destructive && 'text-destructive')}
+                  >
+                    {action.icon}
+                    <span className="flex-1">{action.label}</span>
+                    {action.subActions?.length ? (
+                      <ChevronRightIcon className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                    ) : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </CommandDialog>
       ) : null}

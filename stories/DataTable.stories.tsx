@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
+import { CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { DataTable, type RowAction } from '../src/components/data-table'
@@ -126,16 +126,24 @@ function makeColumns(
 
 function useStatefulPeople(initial: Person[]) {
   const [data, setData] = React.useState(initial)
-  const columns = React.useMemo(
-    () =>
-      makeColumns((id, status) =>
-        setData((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, status } : p))
-        )
-      ),
-    []
-  )
-  return { data, columns }
+  const onStatusChange = React.useCallback((id: string, status: Person['status']) =>
+    setData((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p))), [])
+  const columns = React.useMemo(() => makeColumns(onStatusChange), [onStatusChange])
+  const rowActionsWithStatus = React.useMemo<RowAction<Person>[]>(() => [
+    ...rowActions,
+    {
+      label: 'Change Status',
+      icon: <CircleIcon />,
+      subActions: STATUS_OPTIONS.map((s) => ({
+        label: s.charAt(0).toUpperCase() + s.slice(1),
+        onClick: (rows) => {
+          rows.forEach((r) => onStatusChange(r.id, s))
+          toast.success(`Status set to ${s}`, { description: rows.map((r) => r.name).join(', ') })
+        },
+      })),
+    },
+  ], [onStatusChange])
+  return { data, columns, rowActionsWithStatus }
 }
 
 const people: Person[] = [
@@ -264,7 +272,7 @@ export const WithRowActions: Story = {
     },
   },
   render: () => {
-    const { data, columns } = useStatefulPeople(people)
+    const { data, columns, rowActionsWithStatus } = useStatefulPeople(people)
     return (
       <>
         <Toaster richColors />
@@ -273,7 +281,7 @@ export const WithRowActions: Story = {
           data={data}
           searchColumn="name"
           searchPlaceholder="Search by name..."
-          rowActions={rowActions}
+          rowActions={rowActionsWithStatus}
           getRowLabel={(p) => p.name}
         />
       </>
@@ -291,14 +299,14 @@ export const WithRowActionsSmall: Story = {
     },
   },
   render: () => {
-    const { data, columns } = useStatefulPeople(people.slice(0, 4))
+    const { data, columns, rowActionsWithStatus } = useStatefulPeople(people.slice(0, 4))
     return (
       <>
         <Toaster richColors />
         <DataTable
           columns={columns}
           data={data}
-          rowActions={rowActions}
+          rowActions={rowActionsWithStatus}
           getRowLabel={(p) => p.name}
         />
       </>
