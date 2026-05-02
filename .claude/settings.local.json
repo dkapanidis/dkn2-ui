@@ -3,7 +3,8 @@
     "allow": [
       "Bash(bun install *)",
       "Bash(bun run *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(bun add *)"
     ]
   }
 }
