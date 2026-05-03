@@ -51,6 +51,7 @@ function StatusCell({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
+          tabIndex={-1}
           className="inline-flex items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <StatusBadge status={status} />
@@ -332,6 +333,29 @@ export const NoPagination: Story = {
         data={data}
         searchColumn="name"
         searchPlaceholder="Search by name..."
+        pageSize="all"
+      />
+    )
+  },
+}
+
+export const WithRowReorder: Story = {
+  name: 'Row Reorder',
+  parameters: {
+    docs: {
+      description: {
+        story: 'Drag the grip handle to manually reorder rows. The parent owns the data order.',
+      },
+    },
+  },
+  render: () => {
+    const [data, setData] = React.useState(people.slice(0, 6))
+    const { columns } = useStatefulPeople(data)
+    return (
+      <DataTable
+        columns={columns}
+        data={data}
+        onRowReorder={setData}
         pageSize="all"
       />
     )

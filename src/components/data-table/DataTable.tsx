@@ -1,6 +1,27 @@
 import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragMoveEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   type ColumnDef,
   type ColumnFiltersState,
+  type Row,
   type RowSelectionState,
   type SortingState,
   flexRender,
@@ -10,7 +31,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon, CommandIcon, XIcon } from 'lucide-react'
+import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon, CommandIcon, GripVerticalIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
@@ -51,6 +72,7 @@ export interface DataTableProps<TData, TValue> {
   rowActions?: RowAction<TData>[]
   getRowLabel?: (row: TData) => string
   pageSize?: number | 'all'
+  onRowReorder?: (newData: TData[]) => void
 }
 
 function Checkbox({
@@ -76,7 +98,7 @@ function Checkbox({
       className={cn('inline-flex items-center justify-center cursor-pointer group', className)}
       onClick={onClick}
     >
-      <input ref={ref} type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <input ref={ref} type="checkbox" checked={checked} onChange={onChange} tabIndex={-1} className="sr-only" />
       <span
         className={cn(
           'h-3.5 w-3.5 rounded-xs border flex items-center justify-center transition-colors',
@@ -98,6 +120,99 @@ function Checkbox({
   )
 }
 
+interface SortableRowProps<TData> {
+  row: Row<TData>
+  displayIndex: number
+  activeRowIndex: number | null
+  activeRowSource: 'keyboard' | 'mouse'
+  reorderable: boolean
+  customTranslateY: number | null
+  isDragGroup: boolean
+  justDropped: boolean
+  onMeasureHeight?: (height: number) => void
+  onRowClick: (index: number) => void
+  onRowMouseEnter: (index: number) => void
+  onContextMenu: (e: React.MouseEvent, index: number) => void
+}
+
+function SortableRow<TData>({
+  row,
+  displayIndex,
+  activeRowIndex,
+  activeRowSource,
+  reorderable,
+  customTranslateY,
+  isDragGroup,
+  justDropped,
+  onMeasureHeight,
+  onRowClick,
+  onRowMouseEnter,
+  onContextMenu,
+}: SortableRowProps<TData>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.id,
+    disabled: !reorderable,
+  })
+
+  const nodeRef = React.useCallback((node: HTMLTableRowElement | null) => {
+    setNodeRef(node)
+    if (node && onMeasureHeight) onMeasureHeight(node.offsetHeight)
+  }, [setNodeRef, onMeasureHeight])
+
+  const isSelected = row.getIsSelected()
+  const isActive = activeRowIndex === displayIndex
+
+  return (
+    <TableRow
+      ref={nodeRef}
+      style={
+        customTranslateY !== null
+          ? { transform: `translateY(${customTranslateY}px)`, transition: 'none' }
+          : justDropped
+            ? { transform: 'none', transition: 'none' }
+            : { transform: CSS.Transform.toString(transform), transition }
+      }
+      data-state={isSelected ? 'selected' : undefined}
+      className={cn(
+        'h-6 cursor-pointer select-none',
+        'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
+        isActive && activeRowSource === 'keyboard' && 'row-ring',
+        (isDragging || isDragGroup) && 'shadow-sm bg-background relative z-10',
+      )}
+      onClick={() => onRowClick(displayIndex)}
+      onMouseEnter={() => onRowMouseEnter(displayIndex)}
+      onContextMenu={(e) => onContextMenu(e, displayIndex)}
+    >
+      {row.getVisibleCells().map((cell) => (
+        <TableCell
+          key={cell.id}
+          className={cn(
+            'py-1.5 text-sm',
+            (cell.column.id === '_select' || cell.column.id === '_reorder') && 'w-6 !pl-2 !pr-0'
+          )}
+        >
+          {cell.column.id === '_reorder' ? (
+            <span
+              {...attributes}
+              {...listeners}
+              tabIndex={-1}
+              className="flex items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab active:cursor-grabbing outline-none"
+            >
+              <GripVerticalIcon className="h-3.5 w-3.5" />
+            </span>
+          ) : cell.column.id === '_select' ? (
+            <span className={cn('flex items-center', !isSelected && activeRowIndex !== displayIndex && 'opacity-0')}>
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </span>
+          ) : (
+            flexRender(cell.column.columnDef.cell, cell.getContext())
+          )}
+        </TableCell>
+      ))}
+    </TableRow>
+  )
+}
+
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -106,6 +221,7 @@ export function DataTable<TData, TValue>({
   rowActions,
   getRowLabel,
   pageSize = 10,
+  onRowReorder,
 }: DataTableProps<TData, TValue>) {
   const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -113,6 +229,8 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
   const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
+  const beforeSentinelRef = React.useRef<HTMLDivElement>(null)
+  const paginationRef = React.useRef<HTMLDivElement>(null)
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
@@ -125,6 +243,34 @@ export function DataTable<TData, TValue>({
   } | null>(null)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [actionPage, setActionPage] = React.useState<RowAction<TData> | null>(null)
+  const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
+  const [multiDragActive, setMultiDragActive] = React.useState(false)
+  const [dragDeltaY, setDragDeltaY] = React.useState(0)
+  const dragDeltaYRef = React.useRef(0)
+  const rowHeightRef = React.useRef<number>(33)
+  const [orderedData, setOrderedData] = React.useState<TData[]>(data)
+  const [justDropped, setJustDropped] = React.useState(false)
+  const justDroppedRafRef = React.useRef<number | null>(null)
+
+  // Sync internal order when data changes externally (filter, server refresh, etc.)
+  React.useEffect(() => { setOrderedData(data) }, [data])
+
+  React.useEffect(() => () => {
+    if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
+  }, [])
+
+  // Stable ID per data object regardless of position — required for dnd-kit to track
+  // items correctly across reorders (tanstack table's default IDs are position-based)
+  const stableIdMap = React.useRef(new WeakMap<object, string>())
+  const stableIdCounter = React.useRef(0)
+  const getStableId = React.useCallback((row: TData): string => {
+    if (typeof row !== 'object' || row === null) return String(stableIdCounter.current++)
+    const obj = row as object
+    if (!stableIdMap.current.has(obj)) {
+      stableIdMap.current.set(obj, String(stableIdCounter.current++))
+    }
+    return stableIdMap.current.get(obj)!
+  }, [])
 
   // Reset sub-page after the close animation finishes, not during, to avoid flashes
   React.useEffect(() => {
@@ -133,6 +279,11 @@ export function DataTable<TData, TValue>({
       return () => clearTimeout(t)
     }
   }, [actionsOpen])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown>>(
     () => ({
@@ -162,14 +313,31 @@ export function DataTable<TData, TValue>({
     [getRowLabel]
   )
 
+  const reorderColumn = React.useMemo<ColumnDef<TData, unknown>>(
+    () => ({
+      id: '_reorder',
+      header: () => null,
+      cell: () => null, // rendered inside SortableRow directly
+      enableSorting: false,
+      enableColumnFilter: false,
+      size: 16,
+    }),
+    []
+  )
+
   const allColumns = React.useMemo<ColumnDef<TData, unknown>[]>(
-    () => [selectionColumn, ...(columns as ColumnDef<TData, unknown>[])],
-    [selectionColumn, columns]
+    () => [
+      ...(onRowReorder ? [reorderColumn] : []),
+      selectionColumn,
+      ...(columns as ColumnDef<TData, unknown>[]),
+    ],
+    [reorderColumn, selectionColumn, columns, onRowReorder]
   )
 
   const table = useReactTable({
-    data,
+    data: orderedData,
     columns: allColumns,
+    getRowId: getStableId,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -207,6 +375,82 @@ export function DataTable<TData, TValue>({
     return `${effectiveRows.length} rows`
   })()
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = String(event.active.id)
+    setDragActiveId(id)
+    setDragDeltaY(0)
+    dragDeltaYRef.current = 0
+    const draggedRow = rows.find((r) => r.id === id)
+    setMultiDragActive((draggedRow?.getIsSelected() ?? false) && selectedCount > 1)
+  }
+
+  const handleDragMove = (event: DragMoveEvent) => {
+    if (multiDragActive) {
+      dragDeltaYRef.current = event.delta.y
+      setDragDeltaY(event.delta.y)
+    }
+  }
+
+  const updateActiveRowAfterReorder = React.useCallback((newData: TData[]) => {
+    if (activeRowIndex === null) return
+    const activeRowId = rows[activeRowIndex]?.id
+    if (!activeRowId) return
+    const { pageIndex: pi, pageSize: ps } = table.getState().pagination
+    const pageStart = pi * ps
+    const newIdx = newData.findIndex(item => getStableId(item) === activeRowId) - pageStart
+    setActiveRowIndex(newIdx >= 0 ? newIdx : null)
+  }, [activeRowIndex, rows, table, getStableId])
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    const finalDeltaY = dragDeltaYRef.current
+    setDragActiveId(null)
+    setMultiDragActive(false)
+    setDragDeltaY(0)
+    dragDeltaYRef.current = 0
+
+    const draggedRow = rows.find((r) => r.id === active.id)
+    const isDraggedSelected = draggedRow?.getIsSelected() ?? false
+
+    if (isDraggedSelected && selectedCount > 1) {
+      const rowH = rowHeightRef.current
+      const activeDomIndex = rows.findIndex((r) => r.id === active.id)
+      const nonSelectedDomIndices = rows.map((r, i) => !r.getIsSelected() ? i : -1).filter(i => i !== -1)
+      const insertAt_original = nonSelectedDomIndices.filter(i => i < activeDomIndex).length
+      const insertAt = Math.max(0, Math.min(
+        Math.round(insertAt_original + finalDeltaY / rowH),
+        nonSelectedDomIndices.length
+      ))
+      const selectedIdSet = new Set(table.getSelectedRowModel().rows.map((r) => r.id))
+      const selectedItems = orderedData.filter((item) => selectedIdSet.has(getStableId(item)))
+      const unselectedItems = orderedData.filter((item) => !selectedIdSet.has(getStableId(item)))
+      const newData = [
+        ...unselectedItems.slice(0, insertAt),
+        ...selectedItems,
+        ...unselectedItems.slice(insertAt),
+      ]
+      setJustDropped(true)
+      if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
+      justDroppedRafRef.current = requestAnimationFrame(() => {
+        justDroppedRafRef.current = requestAnimationFrame(() => {
+          setJustDropped(false)
+        })
+      })
+      updateActiveRowAfterReorder(newData)
+      setOrderedData(newData)
+      onRowReorder?.(newData)
+    } else {
+      if (!over || active.id === over.id) return
+      const oldIndex = orderedData.findIndex((item) => getStableId(item) === active.id)
+      const newIndex = orderedData.findIndex((item) => getStableId(item) === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+      const newData = arrayMove(orderedData, oldIndex, newIndex)
+      updateActiveRowAfterReorder(newData)
+      setOrderedData(newData)
+      onRowReorder?.(newData)
+    }
+  }
+
   // Global keyboard handler — navigation works regardless of focus
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -226,13 +470,17 @@ export function DataTable<TData, TValue>({
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault()
         table.toggleAllPageRowsSelected(true)
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === 'Tab' && !e.shiftKey && activeRowIndex === rows.length - 1) {
+        setActiveRowIndex(null)
+      } else if (e.key === 'Tab' && e.shiftKey && activeRowIndex === 0) {
+        setActiveRowIndex(null)
+      } else if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
         e.preventDefault()
         setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
         )
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
         e.preventDefault()
         setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
@@ -301,6 +549,33 @@ export function DataTable<TData, TValue>({
   const pageIndex = table.getState().pagination.pageIndex
   const pageCount = table.getPageCount()
 
+  // Compute per-row custom transforms for multi-drag grouped movement
+  let customTransforms: number[] | null = null
+  if (multiDragActive && dragActiveId) {
+    const rowH = rowHeightRef.current
+    const activeDomIndex = rows.findIndex((r) => r.id === dragActiveId)
+    if (activeDomIndex !== -1) {
+      const selectedDomIndices = rows.map((r, i) => r.getIsSelected() ? i : -1).filter(i => i !== -1)
+      const nonSelectedDomIndices = rows.map((r, i) => !r.getIsSelected() ? i : -1).filter(i => i !== -1)
+      const groupSize = selectedDomIndices.length
+      const insertAt_original = nonSelectedDomIndices.filter(i => i < activeDomIndex).length
+      const insertAt_float = insertAt_original + dragDeltaY / rowH
+      const insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonSelectedDomIndices.length))
+      customTransforms = rows.map((row, domIndex) => {
+        if (row.getIsSelected()) {
+          const groupIdx = selectedDomIndices.indexOf(domIndex)
+          const clamped = Math.max(0, Math.min(insertAt_float, nonSelectedDomIndices.length))
+          return (clamped + groupIdx - domIndex) * rowH
+        }
+        const k = nonSelectedDomIndices.indexOf(domIndex)
+        const target = k < insertAt ? k : k + groupSize
+        return (target - domIndex) * rowH
+      })
+    }
+  }
+
+  const rowIds = rows.map((r) => r.id)
+
   return (
     <TooltipProvider>
     <div className="flex flex-col gap-3">
@@ -317,110 +592,128 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div>
-        <Table className="border-separate border-spacing-0">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
-                    className={cn(
-                      'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
-                      header.id === '_select' && 'w-6 !pl-2 !pr-0',
-                      header.column.getCanSort() && 'cursor-pointer select-none'
-                    )}
-                    onClick={
-                      header.column.getCanSort()
-                        ? header.column.getToggleSortingHandler()
-                        : undefined
-                    }
-                  >
-                    {header.isPlaceholder ? null : header.id === '_select' ? (
-                      flexRender(header.column.columnDef.header, header.getContext())
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getCanSort() && (
-                          <ArrowUpDownIcon
-                            className={cn(
-                              'h-3 w-3 transition-opacity',
-                              header.column.getIsSorted()
-                                ? 'opacity-100 text-foreground'
-                                : 'opacity-30'
-                            )}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length ? (
-              rows.map((row, index) => {
-                const isSelected = row.getIsSelected()
-                const prevSelected = rows[index - 1]?.getIsSelected() ?? false
-                const nextSelected = rows[index + 1]?.getIsSelected() ?? false
-                const isActive = activeRowIndex === index
-                return (
-                <TableRow
-                  key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
-                  data-state={isSelected ? 'selected' : undefined}
-                  className={cn(
-                    'h-6 cursor-pointer select-none',
-                    'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
-                    isActive && activeRowSource === 'keyboard' && 'row-ring',
-                  )}
-                  onClick={() => {
-                    setActiveRowSource('mouse')
-                    setActiveRowIndex(index)
-                    row.toggleSelected()
-                  }}
-                  onMouseEnter={() => {
-                    setActiveRowSource('mouse')
-                    setActiveRowIndex(index)
-                  }}
-                  onContextMenu={(e) => handleContextMenu(e, index)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
+      <div
+        ref={beforeSentinelRef}
+        tabIndex={0}
+        className="sr-only"
+        onFocus={(e) => {
+          if (rows.length === 0) return
+          if (paginationRef.current?.contains(e.relatedTarget as Node)) return
+          setActiveRowIndex(0)
+          setActiveRowSource('keyboard')
+        }}
+      />
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+      >
+        <div>
+          <Table className="border-separate border-spacing-0">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                       className={cn(
-                        'py-1.5 text-sm',
-                        cell.column.id === '_select' && 'w-6 !pl-2 !pr-0'
+                        'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
+                        (header.id === '_select' || header.id === '_reorder') && 'w-6 !pl-2 !pr-0',
+                        header.column.getCanSort() && 'cursor-pointer select-none'
                       )}
+                      onClick={
+                        header.column.getCanSort()
+                          ? header.column.getToggleSortingHandler()
+                          : undefined
+                      }
                     >
-                      {cell.column.id === '_select' ? (
-                        <span className={cn('flex items-center', !row.getIsSelected() && activeRowIndex !== index && 'opacity-0')}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </span>
+                      {header.isPlaceholder ? null : header.id === '_select' || header.id === '_reorder' ? (
+                        flexRender(header.column.columnDef.header, header.getContext())
                       ) : (
-                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                        <div className="flex items-center gap-1">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getCanSort() && (
+                            <ArrowUpDownIcon
+                              className={cn(
+                                'h-3 w-3 transition-opacity',
+                                header.column.getIsSorted()
+                                  ? 'opacity-100 text-foreground'
+                                  : 'opacity-30'
+                              )}
+                            />
+                          )}
+                        </div>
                       )}
-                    </TableCell>
+                    </TableHead>
                   ))}
                 </TableRow>
-                )
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={allColumns.length}
-                  className="h-24 text-center text-muted-foreground text-sm"
-                >
-                  No results found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableHeader>
+            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+              <TableBody>
+                {rows.length ? (
+                  rows.map((row, index) => (
+                    <SortableRow
+                      key={row.id}
+                      row={row}
+                      displayIndex={index}
+                      activeRowIndex={activeRowIndex}
+                      activeRowSource={activeRowSource}
+                      reorderable={!!onRowReorder}
+                      customTranslateY={customTransforms ? customTransforms[index] : null}
+                      isDragGroup={multiDragActive && row.getIsSelected()}
+                      justDropped={justDropped}
+                      onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
+                      onRowClick={(i) => {
+                        setActiveRowSource('mouse')
+                        setActiveRowIndex(i)
+                        row.toggleSelected()
+                      }}
+                      onRowMouseEnter={(i) => {
+                        setActiveRowSource('mouse')
+                        setActiveRowIndex(i)
+                      }}
+                      onContextMenu={handleContextMenu}
+                    />
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={allColumns.length}
+                      className="h-24 text-center text-muted-foreground text-sm"
+                    >
+                      No results found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </SortableContext>
+          </Table>
+        </div>
+      </DndContext>
 
-      <div className="flex items-center justify-between">
+      <div
+        ref={paginationRef}
+        className="flex items-center justify-between"
+        onKeyDown={(e) => {
+          if (e.key === 'Tab' && e.shiftKey && rows.length > 0) {
+            const focusables = Array.from(
+              paginationRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),[tabindex="0"]') ?? []
+            )
+            if (focusables[0] === document.activeElement) {
+              e.preventDefault()
+              e.stopPropagation()
+              setActiveRowIndex(rows.length - 1)
+              setActiveRowSource('keyboard')
+              beforeSentinelRef.current?.focus()
+            }
+          }
+        }}
+      >
         <p className="text-xs text-muted-foreground">
           {table.getFilteredRowModel().rows.length} row
           {table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
@@ -537,7 +830,7 @@ export function DataTable<TData, TValue>({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover"
                     onClick={() => table.resetRowSelection()}
                   >
                     <XIcon className="h-3.5 w-3.5" />
@@ -553,7 +846,7 @@ export function DataTable<TData, TValue>({
             </TooltipProvider>
             {rowActions?.length ? (
               <button
-                className="ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity"
+                className="ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover"
                 onClick={() => setActionsOpen(true)}
               >
                 <CommandIcon className="h-3.5 w-3.5" />
