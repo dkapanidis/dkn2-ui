@@ -13,6 +13,7 @@ export * from './components/ui/scroll-area';
 export * from './components/ui/command';
 export * from './components/ui/table';
 export * from './components/ui/sonner';
+export * from './components/color-picker';
 export * from './components/data-table';
 export * from './components/side-menu';
 export * from './components/filter-bar';
