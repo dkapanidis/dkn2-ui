@@ -22059,7 +22059,7 @@ function K_({
           /* @__PURE__ */ g(xn, { asChild: !0, children: /* @__PURE__ */ g(
             "button",
             {
-              className: "flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover",
+              className: "flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
               onClick: () => ue.resetRowSelection(),
               children: /* @__PURE__ */ g(El, { className: "h-3.5 w-3.5" })
             }
@@ -22072,7 +22072,7 @@ function K_({
         o != null && o.length ? /* @__PURE__ */ z(
           "button",
           {
-            className: "ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-popover",
+            className: "ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
             onClick: () => T(!0),
             children: [
               /* @__PURE__ */ g(ZS, { className: "h-3.5 w-3.5" }),
