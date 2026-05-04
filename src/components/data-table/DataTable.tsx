@@ -55,10 +55,19 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
+export interface ShortcutKeys {
+  key: string
+  altKey?: boolean
+  shiftKey?: boolean
+  metaKey?: boolean
+  ctrlKey?: boolean
+}
+
 export interface RowAction<TData> {
   label: string
   icon?: React.ReactNode
   shortcut?: string
+  shortcutKeys?: ShortcutKeys
   onClick?: (rows: TData[]) => void
   subActions?: RowAction<TData>[]
   destructive?: boolean
@@ -73,6 +82,7 @@ export interface DataTableProps<TData, TValue> {
   getRowLabel?: (row: TData) => string
   pageSize?: number | 'all'
   onRowReorder?: (newData: TData[]) => void
+  getRowId?: (row: TData) => string
 }
 
 function Checkbox({
@@ -172,6 +182,7 @@ function SortableRow<TData>({
             ? { transform: 'none', transition: 'none' }
             : { transform: CSS.Transform.toString(transform), transition }
       }
+      data-display-index={displayIndex}
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
         'h-6 cursor-pointer select-none',
@@ -222,6 +233,7 @@ export function DataTable<TData, TValue>({
   getRowLabel,
   pageSize = 10,
   onRowReorder,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -231,6 +243,7 @@ export function DataTable<TData, TValue>({
   const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
   const beforeSentinelRef = React.useRef<HTMLDivElement>(null)
   const paginationRef = React.useRef<HTMLDivElement>(null)
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
@@ -251,9 +264,23 @@ export function DataTable<TData, TValue>({
   const [orderedData, setOrderedData] = React.useState<TData[]>(data)
   const [justDropped, setJustDropped] = React.useState(false)
   const justDroppedRafRef = React.useRef<number | null>(null)
+  const suppressMouseRef = React.useRef(false)
 
   // Sync internal order when data changes externally (filter, server refresh, etc.)
-  React.useEffect(() => { setOrderedData(data) }, [data])
+  // Also follow the active row to its new position by tracking its stable ID.
+  // rows/activeRowIndex are intentionally captured at the moment data changes (old ordering).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (activeRowIndex !== null) {
+      const activeId = rows[activeRowIndex]?.id
+      if (activeId) {
+        const idFn = getRowId ?? getStableId
+        const newIdx = data.findIndex((item) => idFn(item) === activeId)
+        setActiveRowIndex(newIdx >= 0 ? newIdx : null)
+      }
+    }
+    setOrderedData(data)
+  }, [data])
 
   React.useEffect(() => () => {
     if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
@@ -337,7 +364,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data: orderedData,
     columns: allColumns,
-    getRowId: getStableId,
+    getRowId: getRowId ?? getStableId,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -470,18 +497,30 @@ export function DataTable<TData, TValue>({
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault()
         table.toggleAllPageRowsSelected(true)
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        setActiveRowIndex(0)
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowDown') {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        setActiveRowIndex(rows.length - 1)
       } else if (e.key === 'Tab' && !e.shiftKey && activeRowIndex === rows.length - 1) {
         setActiveRowIndex(null)
       } else if (e.key === 'Tab' && e.shiftKey && activeRowIndex === 0) {
         setActiveRowIndex(null)
-      } else if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
+      } else if ((e.key === 'ArrowDown' && !e.altKey) || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
         e.preventDefault()
+        suppressMouseRef.current = true
         setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
         )
-      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
+      } else if ((e.key === 'ArrowUp' && !e.altKey) || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
         e.preventDefault()
+        suppressMouseRef.current = true
         setActiveRowSource('keyboard')
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.max(prev - 1, 0)
@@ -500,16 +539,33 @@ export function DataTable<TData, TValue>({
         } else {
           setActiveRowIndex(null)
         }
-      } else if (rowActions?.length && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const matched = rowActions.find((a) => a.shortcut === e.key)
-        if (matched) {
+      } else if (rowActions?.length) {
+        const allSubActions = rowActions.flatMap((a) => a.subActions ?? [])
+        const matchedSub = allSubActions.find(
+          (a) =>
+            a.shortcutKeys &&
+            a.shortcutKeys.key === e.key &&
+            !!a.shortcutKeys.altKey === e.altKey &&
+            !!a.shortcutKeys.shiftKey === e.shiftKey &&
+            !!a.shortcutKeys.metaKey === e.metaKey &&
+            !!a.shortcutKeys.ctrlKey === e.ctrlKey,
+        )
+        if (matchedSub) {
           e.preventDefault()
           if (!effectiveRows.length) return
-          if (matched.subActions?.length) {
-            setActionPage(matched)
-            setActionsOpen(true)
-          } else {
-            matched.onClick?.(effectiveRows)
+          suppressMouseRef.current = true
+          matchedSub.onClick?.(effectiveRows)
+        } else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          const matched = rowActions.find((a) => a.shortcut === e.key)
+          if (matched) {
+            e.preventDefault()
+            if (!effectiveRows.length) return
+            if (matched.subActions?.length) {
+              setActionPage(matched)
+              setActionsOpen(true)
+            } else {
+              matched.onClick?.(effectiveRows)
+            }
           }
         }
       }
@@ -517,6 +573,18 @@ export function DataTable<TData, TValue>({
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [rowActions, rows, activeRowIndex, selectedCount, contextMenu, table])
+
+  React.useEffect(() => {
+    const handler = () => { suppressMouseRef.current = false }
+    window.addEventListener('mousemove', handler)
+    return () => window.removeEventListener('mousemove', handler)
+  }, [])
+
+  React.useEffect(() => {
+    if (activeRowIndex === null) return
+    const el = tableContainerRef.current?.querySelector<HTMLElement>(`[data-display-index="${activeRowIndex}"]`)
+    el?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+  }, [activeRowIndex])
 
   // Close context menu on outside interaction
   React.useEffect(() => {
@@ -611,7 +679,7 @@ export function DataTable<TData, TValue>({
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
       >
-        <div>
+        <div ref={tableContainerRef}>
           <Table className="border-separate border-spacing-0">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -677,6 +745,7 @@ export function DataTable<TData, TValue>({
                         row.toggleSelected()
                       }}
                       onRowMouseEnter={(i) => {
+                        if (suppressMouseRef.current) return
                         setActiveRowSource('mouse')
                         setActiveRowIndex(i)
                       }}
@@ -815,7 +884,14 @@ export function DataTable<TData, TValue>({
                     }}
                   >
                     {sub.icon}
-                    {sub.label}
+                    <span className="flex-1">{sub.label}</span>
+                    {sub.shortcut && (
+                      <span className="flex items-center gap-0.5">
+                        {sub.shortcut.split('').map((ch, j) => (
+                          <kbd key={j} className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{ch}</kbd>
+                        ))}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -898,7 +974,14 @@ export function DataTable<TData, TValue>({
                     className={cn(sub.destructive && 'text-destructive')}
                   >
                     {sub.icon}
-                    {sub.label}
+                    <span className="flex-1">{sub.label}</span>
+                    {sub.shortcut && (
+                      <span className="flex items-center gap-0.5">
+                        {sub.shortcut.split('').map((ch, j) => (
+                          <kbd key={j} className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{ch}</kbd>
+                        ))}
+                      </span>
+                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>

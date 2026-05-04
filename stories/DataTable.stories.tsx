@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
-import { CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsDown, ChevronsUp, CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { DataTable, type RowAction } from '../src/components/data-table'
@@ -351,10 +351,84 @@ export const WithRowReorder: Story = {
   render: () => {
     const [data, setData] = React.useState(people.slice(0, 6))
     const { columns } = useStatefulPeople(data)
+
+    function movePeople(rows: Person[], direction: 'top' | 'up' | 'down' | 'bottom') {
+      const selectedIds = new Set(rows.map((r) => r.id))
+      setData((prev) => {
+        const result = [...prev]
+        if (direction === 'top') {
+          const selected = result.filter((r) => selectedIds.has(r.id))
+          const rest = result.filter((r) => !selectedIds.has(r.id))
+          return [...selected, ...rest]
+        }
+        if (direction === 'bottom') {
+          const selected = result.filter((r) => selectedIds.has(r.id))
+          const rest = result.filter((r) => !selectedIds.has(r.id))
+          return [...rest, ...selected]
+        }
+        const positions = result
+          .map((r, i) => ({ r, i }))
+          .filter(({ r }) => selectedIds.has(r.id))
+          .map(({ i }) => i)
+        if (direction === 'up') {
+          for (const pos of positions) {
+            if (pos > 0 && !selectedIds.has(result[pos - 1].id)) {
+              ;[result[pos - 1], result[pos]] = [result[pos], result[pos - 1]]
+            }
+          }
+        } else {
+          for (const pos of [...positions].reverse()) {
+            if (pos < result.length - 1 && !selectedIds.has(result[pos + 1].id)) {
+              ;[result[pos], result[pos + 1]] = [result[pos + 1], result[pos]]
+            }
+          }
+        }
+        return result
+      })
+    }
+
+    const moveRowActions: RowAction<Person>[] = [
+      {
+        label: 'Move',
+        subActions: [
+          {
+            label: 'Move to top',
+            icon: <ChevronsUp />,
+            shortcut: '⌥⇧↑',
+            shortcutKeys: { key: 'ArrowUp', altKey: true, shiftKey: true },
+            onClick: (rows) => movePeople(rows, 'top'),
+          },
+          {
+            label: 'Move up',
+            icon: <ArrowUp />,
+            shortcut: '⌥↑',
+            shortcutKeys: { key: 'ArrowUp', altKey: true },
+            onClick: (rows) => movePeople(rows, 'up'),
+          },
+          {
+            label: 'Move down',
+            icon: <ArrowDown />,
+            shortcut: '⌥↓',
+            shortcutKeys: { key: 'ArrowDown', altKey: true },
+            onClick: (rows) => movePeople(rows, 'down'),
+          },
+          {
+            label: 'Move to bottom',
+            icon: <ChevronsDown />,
+            shortcut: '⌥⇧↓',
+            shortcutKeys: { key: 'ArrowDown', altKey: true, shiftKey: true },
+            onClick: (rows) => movePeople(rows, 'bottom'),
+          },
+        ],
+      },
+    ]
+
     return (
       <DataTable
         columns={columns}
         data={data}
+        rowActions={moveRowActions}
+        getRowLabel={(p) => p.name}
         onRowReorder={setData}
         pageSize="all"
       />
