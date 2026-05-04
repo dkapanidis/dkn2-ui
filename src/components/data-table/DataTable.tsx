@@ -656,9 +656,12 @@ export function DataTable<TData, TValue>({
             <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
               <TableBody>
                 {rows.length ? (
-                  rows.map((row, index) => (
-                    <SortableRow
-                      key={row.id}
+                  rows.map((row, index) => {
+                    const isSelected = row.getIsSelected()
+                    const prevSelected = rows[index - 1]?.getIsSelected() ?? false
+                    const nextSelected = rows[index + 1]?.getIsSelected() ?? false
+                    return <SortableRow
+                      key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
                       row={row}
                       displayIndex={index}
                       activeRowIndex={activeRowIndex}
@@ -679,7 +682,7 @@ export function DataTable<TData, TValue>({
                       }}
                       onContextMenu={handleContextMenu}
                     />
-                  ))
+                  })
                 ) : (
                   <TableRow>
                     <TableCell
