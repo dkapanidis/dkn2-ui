@@ -1,19 +1,10 @@
 import {
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
   closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragMoveEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -31,9 +22,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon, CommandIcon, GripVerticalIcon, XIcon } from 'lucide-react'
+import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon, GripVerticalIcon } from 'lucide-react'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import {
   CommandDialog,
@@ -54,36 +44,14 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { ContextMenu } from './ContextMenu'
+import { SelectionBar } from './SelectionBar'
+import type { DataTableProps, RowAction } from './types'
+import { useDrag } from './useDrag'
+import { useKeyboardHandler } from './useKeyboardHandler'
 
-export interface ShortcutKeys {
-  key: string
-  altKey?: boolean
-  shiftKey?: boolean
-  metaKey?: boolean
-  ctrlKey?: boolean
-}
-
-export interface RowAction<TData> {
-  label: string
-  icon?: React.ReactNode
-  shortcut?: string
-  shortcutKeys?: ShortcutKeys
-  onClick?: (rows: TData[]) => void
-  subActions?: RowAction<TData>[]
-  destructive?: boolean
-}
-
-export interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  searchColumn?: string
-  searchPlaceholder?: string
-  rowActions?: RowAction<TData>[]
-  getRowLabel?: (row: TData) => string
-  pageSize?: number | 'all'
-  onRowReorder?: (newData: TData[]) => void
-  getRowId?: (row: TData) => string
-}
+export type { DataTableProps, RowAction }
+export type { ShortcutKeys } from './types'
 
 function Checkbox({
   checked,
@@ -244,6 +212,7 @@ export function DataTable<TData, TValue>({
   const beforeSentinelRef = React.useRef<HTMLDivElement>(null)
   const paginationRef = React.useRef<HTMLDivElement>(null)
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const rowHeightRef = React.useRef<number>(33)
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
@@ -256,14 +225,7 @@ export function DataTable<TData, TValue>({
   } | null>(null)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [actionPage, setActionPage] = React.useState<RowAction<TData> | null>(null)
-  const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
-  const [multiDragActive, setMultiDragActive] = React.useState(false)
-  const [dragDeltaY, setDragDeltaY] = React.useState(0)
-  const dragDeltaYRef = React.useRef(0)
-  const rowHeightRef = React.useRef<number>(33)
   const [orderedData, setOrderedData] = React.useState<TData[]>(data)
-  const [justDropped, setJustDropped] = React.useState(false)
-  const justDroppedRafRef = React.useRef<number | null>(null)
   const suppressMouseRef = React.useRef(false)
 
   // Sync internal order when data changes externally (filter, server refresh, etc.)
@@ -281,10 +243,6 @@ export function DataTable<TData, TValue>({
     }
     setOrderedData(data)
   }, [data])
-
-  React.useEffect(() => () => {
-    if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
-  }, [])
 
   // Stable ID per data object regardless of position — required for dnd-kit to track
   // items correctly across reorders (tanstack table's default IDs are position-based)
@@ -306,11 +264,6 @@ export function DataTable<TData, TValue>({
       return () => clearTimeout(t)
     }
   }, [actionsOpen])
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
 
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown>>(
     () => ({
@@ -402,177 +355,43 @@ export function DataTable<TData, TValue>({
     return `${effectiveRows.length} rows`
   })()
 
-  const handleDragStart = (event: DragStartEvent) => {
-    const id = String(event.active.id)
-    setDragActiveId(id)
-    setDragDeltaY(0)
-    dragDeltaYRef.current = 0
-    const draggedRow = rows.find((r) => r.id === id)
-    setMultiDragActive((draggedRow?.getIsSelected() ?? false) && selectedCount > 1)
-  }
+  const {
+    sensors,
+    dragActiveId,
+    multiDragActive,
+    justDropped,
+    customTransforms,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+  } = useDrag({
+    rows,
+    selectedCount,
+    orderedData,
+    setOrderedData,
+    onRowReorder,
+    activeRowIndex,
+    setActiveRowIndex,
+    getStableId,
+    table,
+    rowHeightRef,
+  })
 
-  const handleDragMove = (event: DragMoveEvent) => {
-    if (multiDragActive) {
-      dragDeltaYRef.current = event.delta.y
-      setDragDeltaY(event.delta.y)
-    }
-  }
-
-  const updateActiveRowAfterReorder = React.useCallback((newData: TData[]) => {
-    if (activeRowIndex === null) return
-    const activeRowId = rows[activeRowIndex]?.id
-    if (!activeRowId) return
-    const { pageIndex: pi, pageSize: ps } = table.getState().pagination
-    const pageStart = pi * ps
-    const newIdx = newData.findIndex(item => getStableId(item) === activeRowId) - pageStart
-    setActiveRowIndex(newIdx >= 0 ? newIdx : null)
-  }, [activeRowIndex, rows, table, getStableId])
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    const finalDeltaY = dragDeltaYRef.current
-    setDragActiveId(null)
-    setMultiDragActive(false)
-    setDragDeltaY(0)
-    dragDeltaYRef.current = 0
-
-    const draggedRow = rows.find((r) => r.id === active.id)
-    const isDraggedSelected = draggedRow?.getIsSelected() ?? false
-
-    if (isDraggedSelected && selectedCount > 1) {
-      const rowH = rowHeightRef.current
-      const activeDomIndex = rows.findIndex((r) => r.id === active.id)
-      const nonSelectedDomIndices = rows.map((r, i) => !r.getIsSelected() ? i : -1).filter(i => i !== -1)
-      const insertAt_original = nonSelectedDomIndices.filter(i => i < activeDomIndex).length
-      const insertAt = Math.max(0, Math.min(
-        Math.round(insertAt_original + finalDeltaY / rowH),
-        nonSelectedDomIndices.length
-      ))
-      const selectedIdSet = new Set(table.getSelectedRowModel().rows.map((r) => r.id))
-      const selectedItems = orderedData.filter((item) => selectedIdSet.has(getStableId(item)))
-      const unselectedItems = orderedData.filter((item) => !selectedIdSet.has(getStableId(item)))
-      const newData = [
-        ...unselectedItems.slice(0, insertAt),
-        ...selectedItems,
-        ...unselectedItems.slice(insertAt),
-      ]
-      setJustDropped(true)
-      if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
-      justDroppedRafRef.current = requestAnimationFrame(() => {
-        justDroppedRafRef.current = requestAnimationFrame(() => {
-          setJustDropped(false)
-        })
-      })
-      updateActiveRowAfterReorder(newData)
-      setOrderedData(newData)
-      onRowReorder?.(newData)
-    } else {
-      if (!over || active.id === over.id) return
-      const oldIndex = orderedData.findIndex((item) => getStableId(item) === active.id)
-      const newIndex = orderedData.findIndex((item) => getStableId(item) === over.id)
-      if (oldIndex === -1 || newIndex === -1) return
-      const newData = arrayMove(orderedData, oldIndex, newIndex)
-      updateActiveRowAfterReorder(newData)
-      setOrderedData(newData)
-      onRowReorder?.(newData)
-    }
-  }
-
-  // Global keyboard handler — navigation works regardless of focus
-  React.useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Skip when focus is inside a text input to avoid hijacking typing
-      const target = e.target as HTMLElement
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable
-      ) return
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        if (!rowActions?.length || !effectiveRows.length) return
-        e.preventDefault()
-        setActionsOpen(true)
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        e.preventDefault()
-        table.toggleAllPageRowsSelected(true)
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') {
-        e.preventDefault()
-        suppressMouseRef.current = true
-        setActiveRowSource('keyboard')
-        setActiveRowIndex(0)
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowDown') {
-        e.preventDefault()
-        suppressMouseRef.current = true
-        setActiveRowSource('keyboard')
-        setActiveRowIndex(rows.length - 1)
-      } else if (e.key === 'Tab' && !e.shiftKey && activeRowIndex === rows.length - 1) {
-        setActiveRowIndex(null)
-      } else if (e.key === 'Tab' && e.shiftKey && activeRowIndex === 0) {
-        setActiveRowIndex(null)
-      } else if ((e.key === 'ArrowDown' && !e.altKey) || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
-        e.preventDefault()
-        suppressMouseRef.current = true
-        setActiveRowSource('keyboard')
-        setActiveRowIndex((prev) =>
-          prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
-        )
-      } else if ((e.key === 'ArrowUp' && !e.altKey) || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
-        e.preventDefault()
-        suppressMouseRef.current = true
-        setActiveRowSource('keyboard')
-        setActiveRowIndex((prev) =>
-          prev === null ? 0 : Math.max(prev - 1, 0)
-        )
-      } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
-        e.preventDefault()
-        rows[activeRowIndex]?.toggleSelected()
-      } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length && effectiveRows.length) {
-        e.preventDefault()
-        setActionsOpen(true)
-      } else if (e.key === 'Escape') {
-        if (contextMenu) {
-          setContextMenu(null)
-        } else if (selectedCount > 0) {
-          table.resetRowSelection()
-        } else {
-          setActiveRowIndex(null)
-        }
-      } else if (rowActions?.length) {
-        const allSubActions = rowActions.flatMap((a) => a.subActions ?? [])
-        const matchedSub = allSubActions.find(
-          (a) =>
-            a.shortcutKeys &&
-            a.shortcutKeys.key === e.key &&
-            !!a.shortcutKeys.altKey === e.altKey &&
-            !!a.shortcutKeys.shiftKey === e.shiftKey &&
-            !!a.shortcutKeys.metaKey === e.metaKey &&
-            !!a.shortcutKeys.ctrlKey === e.ctrlKey,
-        )
-        if (matchedSub) {
-          e.preventDefault()
-          if (!effectiveRows.length) return
-          suppressMouseRef.current = true
-          matchedSub.onClick?.(effectiveRows)
-        } else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
-          const matched = rowActions.find((a) => a.shortcut === e.key)
-          if (matched) {
-            e.preventDefault()
-            if (!effectiveRows.length) return
-            if (matched.subActions?.length) {
-              setActionPage(matched)
-              setActionsOpen(true)
-            } else {
-              matched.onClick?.(effectiveRows)
-            }
-          }
-        }
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [rowActions, rows, activeRowIndex, selectedCount, contextMenu, table])
+  useKeyboardHandler({
+    rowActions,
+    rows,
+    activeRowIndex,
+    selectedCount,
+    contextMenu,
+    table,
+    effectiveRows,
+    setActionsOpen,
+    setActionPage,
+    setActiveRowIndex,
+    setActiveRowSource,
+    suppressMouseRef,
+    setContextMenu,
+  })
 
   React.useEffect(() => {
     const handler = () => { suppressMouseRef.current = false }
@@ -616,31 +435,6 @@ export function DataTable<TData, TValue>({
 
   const pageIndex = table.getState().pagination.pageIndex
   const pageCount = table.getPageCount()
-
-  // Compute per-row custom transforms for multi-drag grouped movement
-  let customTransforms: number[] | null = null
-  if (multiDragActive && dragActiveId) {
-    const rowH = rowHeightRef.current
-    const activeDomIndex = rows.findIndex((r) => r.id === dragActiveId)
-    if (activeDomIndex !== -1) {
-      const selectedDomIndices = rows.map((r, i) => r.getIsSelected() ? i : -1).filter(i => i !== -1)
-      const nonSelectedDomIndices = rows.map((r, i) => !r.getIsSelected() ? i : -1).filter(i => i !== -1)
-      const groupSize = selectedDomIndices.length
-      const insertAt_original = nonSelectedDomIndices.filter(i => i < activeDomIndex).length
-      const insertAt_float = insertAt_original + dragDeltaY / rowH
-      const insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonSelectedDomIndices.length))
-      customTransforms = rows.map((row, domIndex) => {
-        if (row.getIsSelected()) {
-          const groupIdx = selectedDomIndices.indexOf(domIndex)
-          const clamped = Math.max(0, Math.min(insertAt_float, nonSelectedDomIndices.length))
-          return (clamped + groupIdx - domIndex) * rowH
-        }
-        const k = nonSelectedDomIndices.indexOf(domIndex)
-        const target = k < insertAt ? k : k + groupSize
-        return (target - domIndex) * rowH
-      })
-    }
-  }
 
   const rowIds = rows.map((r) => r.id)
 
@@ -819,122 +613,21 @@ export function DataTable<TData, TValue>({
         )}
       </div>
 
-      {/* Context menu */}
-      {contextMenu &&
-        rowActions?.length &&
-        createPortal(
-          <>
-            <div
-              style={{ top: contextMenu.y, left: contextMenu.x }}
-              className="fixed z-50 min-w-[160px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {rowActions.map((action, i) => (
-                <button
-                  key={i}
-                  className={cn(
-                    'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
-                    action.destructive && 'text-destructive hover:text-destructive focus:text-destructive',
-                    contextSub?.action === action && 'bg-accent'
-                  )}
-                  onMouseEnter={(e) => {
-                    if (action.subActions?.length) {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      setContextSub({ action, x: rect.right + 4, y: rect.top })
-                    } else {
-                      setContextSub(null)
-                    }
-                  }}
-                  onClick={() => {
-                    if (!action.subActions?.length) {
-                      action.onClick?.(getContextRows())
-                      setContextMenu(null)
-                      setContextSub(null)
-                    }
-                  }}
-                >
-                  {action.icon}
-                  <span className="flex-1">{action.label}</span>
-                  {action.shortcut && (
-                    <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">
-                      {action.shortcut}
-                    </kbd>
-                  )}
-                  {action.subActions?.length ? <ChevronRightIcon className="h-3 w-3 opacity-50" /> : null}
-                </button>
-              ))}
-            </div>
-            {contextSub && (
-              <div
-                style={{ top: contextSub.y, left: contextSub.x }}
-                className="fixed z-50 min-w-[140px] overflow-hidden rounded-md border border-border bg-popover shadow-md py-1 [&_svg]:size-4 dark:text-primary"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {contextSub.action.subActions!.map((sub, i) => (
-                  <button
-                    key={i}
-                    className={cn(
-                      'flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors text-left outline-none focus:bg-accent',
-                      sub.destructive && 'text-destructive hover:text-destructive focus:text-destructive'
-                    )}
-                    onClick={() => {
-                      sub.onClick?.(getContextRows())
-                      setContextMenu(null)
-                      setContextSub(null)
-                    }}
-                  >
-                    {sub.icon}
-                    <span className="flex-1">{sub.label}</span>
-                    {sub.shortcut && (
-                      <span className="flex items-center gap-0.5">
-                        {sub.shortcut.split('').map((ch, j) => (
-                          <kbd key={j} className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{ch}</kbd>
-                        ))}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>,
-          document.body
-        )}
+      <ContextMenu
+        contextMenu={contextMenu}
+        contextSub={contextSub}
+        rowActions={rowActions ?? []}
+        onSetContextSub={setContextSub}
+        onClose={() => { setContextMenu(null); setContextSub(null) }}
+        getContextRows={getContextRows}
+      />
 
-      {/* Selection bar */}
-      {selectedCount > 0 &&
-        createPortal(
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover text-popover-foreground px-2 py-1.5 shadow-lg">
-            <span className="px-2 text-sm font-medium">{selectedCount} selected</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                    onClick={() => table.resetRowSelection()}
-                  >
-                    <XIcon className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="flex items-center gap-1.5 border border-primary/20">
-                  Clear selected
-                  <kbd className="rounded border border-primary/30 bg-primary/10 px-1 py-0.5 font-mono text-[10px] leading-none">
-                    Esc
-                  </kbd>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            {rowActions?.length ? (
-              <button
-                className="ml-1 flex items-center gap-1.5 rounded-full bg-muted text-foreground px-3 py-1 text-sm hover:opacity-80 transition-opacity outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                onClick={() => setActionsOpen(true)}
-              >
-                <CommandIcon className="h-3.5 w-3.5" />
-                Actions
-              </button>
-            ) : null}
-          </div>,
-          document.body
-        )}
+      <SelectionBar
+        selectedCount={selectedCount}
+        rowActions={rowActions}
+        onClearSelection={() => table.resetRowSelection()}
+        onOpenActions={() => setActionsOpen(true)}
+      />
 
       {/* Actions command dialog */}
       {rowActions?.length ? (
