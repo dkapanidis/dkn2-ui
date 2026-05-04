@@ -16,17 +16,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { ArrowUpDownIcon } from 'lucide-react'
 import * as React from 'react'
-import { Button } from '@/components/ui/button'
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -43,6 +34,8 @@ import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
 import { SortableRow } from './SortableRow'
 import type { DataTableProps, RowAction } from './types'
+import { ActionsDialog } from './ActionsDialog'
+import { TableFooter } from './TableFooter'
 import { useDrag } from './useDrag'
 import { useKeyboardHandler } from './useKeyboardHandler'
 
@@ -419,56 +412,22 @@ export function DataTable<TData, TValue>({
         </div>
       </DndContext>
 
-      <div
+      <TableFooter
         ref={paginationRef}
-        className="flex items-center justify-between"
-        onKeyDown={(e) => {
-          if (e.key === 'Tab' && e.shiftKey && rows.length > 0) {
-            const focusables = Array.from(
-              paginationRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),[tabindex="0"]') ?? []
-            )
-            if (focusables[0] === document.activeElement) {
-              e.preventDefault()
-              e.stopPropagation()
-              setActiveRowIndex(rows.length - 1)
-              setActiveRowSource('keyboard')
-              beforeSentinelRef.current?.focus()
-            }
-          }
+        rowCount={table.getFilteredRowModel().rows.length}
+        showPagination={!showAll}
+        pageIndex={pageIndex}
+        pageCount={pageCount}
+        canPreviousPage={table.getCanPreviousPage()}
+        canNextPage={table.getCanNextPage()}
+        onPreviousPage={() => table.previousPage()}
+        onNextPage={() => table.nextPage()}
+        onShiftTabToTable={() => {
+          setActiveRowIndex(rows.length - 1)
+          setActiveRowSource('keyboard')
+          beforeSentinelRef.current?.focus()
         }}
-      >
-        <p className="text-xs text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} row
-          {table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
-        </p>
-        {!showAll && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Page {pageIndex + 1} of {Math.max(pageCount, 1)}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <ChevronLeftIcon className="h-3.5 w-3.5" />
-              <span className="sr-only">Previous page</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-              <span className="sr-only">Next page</span>
-            </Button>
-          </div>
-        )}
-      </div>
+      />
 
       <ContextMenu
         contextMenu={contextMenu}
@@ -486,86 +445,16 @@ export function DataTable<TData, TValue>({
         onOpenActions={() => setActionsOpen(true)}
       />
 
-      {/* Actions command dialog */}
       {rowActions?.length ? (
-        <CommandDialog
+        <ActionsDialog
           open={actionsOpen}
           onOpenChange={setActionsOpen}
-          commandKey={actionPage?.label ?? 'root'}
-          title="Row Actions"
-          description="Choose an action to apply to selected rows"
-        >
-          <CommandInput
-            autoFocus
-            placeholder={actionPage ? `Search ${actionPage.label.toLowerCase()}...` : 'Type a command or search...'}
-            onKeyDown={(e) => {
-              if (e.key === 'Backspace' && (e.target as HTMLInputElement).value === '') {
-                setActionPage(null)
-              }
-            }}
-          />
-          <CommandList>
-            <CommandEmpty>No actions available.</CommandEmpty>
-            {actionPage ? (
-              <CommandGroup heading={
-                <span className="flex items-center justify-between w-full">
-                  <span>{actionPage.label}</span>
-                  <span className="font-normal text-muted-foreground">{actionsHeading}</span>
-                </span>
-              }>
-                {actionPage.subActions!.map((sub, i) => (
-                  <CommandItem
-                    key={i}
-                    onSelect={() => {
-                      sub.onClick?.(effectiveRows)
-                      setActionsOpen(false)
-                      setActionPage(null)
-                    }}
-                    className={cn(sub.destructive && 'text-destructive')}
-                  >
-                    {sub.icon}
-                    <span className="flex-1">{sub.label}</span>
-                    {sub.shortcut && (
-                      <span className="flex items-center gap-0.5">
-                        {sub.shortcut.split('').map((ch, j) => (
-                          <kbd key={j} className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">{ch}</kbd>
-                        ))}
-                      </span>
-                    )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ) : (
-              <CommandGroup heading={actionsHeading}>
-                {rowActions.map((action, i) => (
-                  <CommandItem
-                    key={i}
-                    onSelect={() => {
-                      if (action.subActions?.length) {
-                        setActionPage(action)
-                      } else {
-                        action.onClick?.(effectiveRows)
-                        setActionsOpen(false)
-                      }
-                    }}
-                    className={cn(action.destructive && 'text-destructive')}
-                  >
-                    {action.icon}
-                    <span className="flex-1">{action.label}</span>
-                    {action.shortcut && (
-                      <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">
-                        {action.shortcut}
-                      </kbd>
-                    )}
-                    {action.subActions?.length ? (
-                      <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : null}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-          </CommandList>
-        </CommandDialog>
+          rowActions={rowActions}
+          actionPage={actionPage}
+          onSetActionPage={setActionPage}
+          effectiveRows={effectiveRows}
+          actionsHeading={actionsHeading}
+        />
       ) : null}
     </div>
     </TooltipProvider>
