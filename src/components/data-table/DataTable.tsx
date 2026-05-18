@@ -30,6 +30,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ContextMenu } from './ContextMenu'
+import { ListRow } from './ListRow'
 import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
 import { SortableRow } from './SortableRow'
@@ -52,6 +53,7 @@ export function DataTable<TData, TValue>({
   pageSize = 10,
   onRowReorder,
   getRowId,
+  view = 'table',
 }: DataTableProps<TData, TValue>) {
   const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -222,7 +224,7 @@ export function DataTable<TData, TValue>({
     onRowReorder,
     activeRowIndex,
     setActiveRowIndex,
-    getStableId,
+    getItemId: getRowId ?? getStableId,
     table,
     rowHeightRef,
   })
@@ -324,91 +326,134 @@ export function DataTable<TData, TValue>({
         onDragEnd={handleDragEnd}
       >
         <div ref={tableContainerRef}>
-          <Table className="border-separate border-spacing-0">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
-                      className={cn(
-                        'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
-                        (header.id === '_select' || header.id === '_reorder') && 'w-6 !pl-2 !pr-0',
-                        header.column.getCanSort() && 'cursor-pointer select-none'
-                      )}
-                      onClick={
-                        header.column.getCanSort()
-                          ? header.column.getToggleSortingHandler()
-                          : undefined
-                      }
-                    >
-                      {header.isPlaceholder ? null : header.id === '_select' || header.id === '_reorder' ? (
-                        flexRender(header.column.columnDef.header, header.getContext())
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <ArrowUpDownIcon
-                              className={cn(
-                                'h-3 w-3 transition-opacity',
-                                header.column.getIsSorted()
-                                  ? 'opacity-100 text-foreground'
-                                  : 'opacity-30'
-                              )}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
+          {view === 'list' ? (
             <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-              <TableBody>
+              <div>
                 {rows.length ? (
                   rows.map((row, index) => {
                     const isSelected = row.getIsSelected()
                     const prevSelected = rows[index - 1]?.getIsSelected() ?? false
                     const nextSelected = rows[index + 1]?.getIsSelected() ?? false
-                    return <SortableRow
-                      key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
-                      row={row}
-                      displayIndex={index}
-                      activeRowIndex={activeRowIndex}
-                      activeRowSource={activeRowSource}
-                      reorderable={!!onRowReorder}
-                      customTranslateY={customTransforms ? customTransforms[index] : null}
-                      isDragGroup={multiDragActive && row.getIsSelected()}
-                      justDropped={justDropped}
-                      onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
-                      onRowClick={(i) => {
-                        setActiveRowSource('mouse')
-                        setActiveRowIndex(i)
-                        row.toggleSelected()
-                      }}
-                      onRowMouseEnter={(i) => {
-                        if (suppressMouseRef.current) return
-                        setActiveRowSource('mouse')
-                        setActiveRowIndex(i)
-                      }}
-                      onContextMenu={handleContextMenu}
-                    />
+                    return (
+                      <ListRow
+                        key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
+                        row={row}
+                        displayIndex={index}
+                        activeRowIndex={activeRowIndex}
+                        activeRowSource={activeRowSource}
+                        reorderable={!!onRowReorder}
+                        customTranslateY={customTransforms ? customTransforms[index] : null}
+                        isDragGroup={multiDragActive && row.getIsSelected()}
+                        justDropped={justDropped}
+                        onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
+                        onRowClick={(i) => {
+                          setActiveRowSource('mouse')
+                          setActiveRowIndex(i)
+                          row.toggleSelected()
+                        }}
+                        onRowMouseEnter={(i) => {
+                          if (suppressMouseRef.current) return
+                          setActiveRowSource('mouse')
+                          setActiveRowIndex(i)
+                        }}
+                        onContextMenu={handleContextMenu}
+                      />
+                    )
                   })
                 ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={allColumns.length}
-                      className="h-24 text-center text-muted-foreground text-sm"
-                    >
-                      No results found.
-                    </TableCell>
-                  </TableRow>
+                  <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+                    No results found.
+                  </div>
                 )}
-              </TableBody>
+              </div>
             </SortableContext>
-          </Table>
+          ) : (
+            <Table className="border-separate border-spacing-0">
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
+                        className={cn(
+                          'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
+                          (header.id === '_select' || header.id === '_reorder') && 'w-6 !pl-2 !pr-0',
+                          header.column.getCanSort() && 'cursor-pointer select-none'
+                        )}
+                        onClick={
+                          header.column.getCanSort()
+                            ? header.column.getToggleSortingHandler()
+                            : undefined
+                        }
+                      >
+                        {header.isPlaceholder ? null : header.id === '_select' || header.id === '_reorder' ? (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              <ArrowUpDownIcon
+                                className={cn(
+                                  'h-3 w-3 transition-opacity',
+                                  header.column.getIsSorted()
+                                    ? 'opacity-100 text-foreground'
+                                    : 'opacity-30'
+                                )}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+                <TableBody>
+                  {rows.length ? (
+                    rows.map((row, index) => {
+                      const isSelected = row.getIsSelected()
+                      const prevSelected = rows[index - 1]?.getIsSelected() ?? false
+                      const nextSelected = rows[index + 1]?.getIsSelected() ?? false
+                      return <SortableRow
+                        key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
+                        row={row}
+                        displayIndex={index}
+                        activeRowIndex={activeRowIndex}
+                        activeRowSource={activeRowSource}
+                        reorderable={!!onRowReorder}
+                        customTranslateY={customTransforms ? customTransforms[index] : null}
+                        isDragGroup={multiDragActive && row.getIsSelected()}
+                        justDropped={justDropped}
+                        onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
+                        onRowClick={(i) => {
+                          setActiveRowSource('mouse')
+                          setActiveRowIndex(i)
+                          row.toggleSelected()
+                        }}
+                        onRowMouseEnter={(i) => {
+                          if (suppressMouseRef.current) return
+                          setActiveRowSource('mouse')
+                          setActiveRowIndex(i)
+                        }}
+                        onContextMenu={handleContextMenu}
+                      />
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={allColumns.length}
+                        className="h-24 text-center text-muted-foreground text-sm"
+                      >
+                        No results found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </SortableContext>
+            </Table>
+          )}
         </div>
       </DndContext>
 

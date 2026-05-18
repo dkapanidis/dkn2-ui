@@ -29,4 +29,5 @@ export interface DataTableProps<TData, TValue> {
   pageSize?: number | 'all'
   onRowReorder?: (newData: TData[]) => void
   getRowId?: (row: TData) => string
+  view?: 'table' | 'list'
 }

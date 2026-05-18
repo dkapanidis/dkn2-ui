@@ -19,7 +19,7 @@ interface UseDragParams<TData> {
   onRowReorder?: (newData: TData[]) => void
   activeRowIndex: number | null
   setActiveRowIndex: React.Dispatch<React.SetStateAction<number | null>>
-  getStableId: (row: TData) => string
+  getItemId: (row: TData) => string
   table: Table<TData>
   rowHeightRef: React.MutableRefObject<number>
 }
@@ -32,7 +32,7 @@ export function useDrag<TData>({
   onRowReorder,
   activeRowIndex,
   setActiveRowIndex,
-  getStableId,
+  getItemId,
   table,
   rowHeightRef,
 }: UseDragParams<TData>) {
@@ -58,9 +58,9 @@ export function useDrag<TData>({
     if (!activeRowId) return
     const { pageIndex: pi, pageSize: ps } = table.getState().pagination
     const pageStart = pi * ps
-    const newIdx = newData.findIndex(item => getStableId(item) === activeRowId) - pageStart
+    const newIdx = newData.findIndex(item => getItemId(item) === activeRowId) - pageStart
     setActiveRowIndex(newIdx >= 0 ? newIdx : null)
-  }, [activeRowIndex, rows, table, getStableId, setActiveRowIndex])
+  }, [activeRowIndex, rows, table, getItemId, setActiveRowIndex])
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id)
@@ -99,8 +99,8 @@ export function useDrag<TData>({
         nonSelectedDomIndices.length
       ))
       const selectedIdSet = new Set(table.getSelectedRowModel().rows.map((r) => r.id))
-      const selectedItems = orderedData.filter((item) => selectedIdSet.has(getStableId(item)))
-      const unselectedItems = orderedData.filter((item) => !selectedIdSet.has(getStableId(item)))
+      const selectedItems = orderedData.filter((item) => selectedIdSet.has(getItemId(item)))
+      const unselectedItems = orderedData.filter((item) => !selectedIdSet.has(getItemId(item)))
       const newData = [
         ...unselectedItems.slice(0, insertAt),
         ...selectedItems,
@@ -118,8 +118,8 @@ export function useDrag<TData>({
       onRowReorder?.(newData)
     } else {
       if (!over || active.id === over.id) return
-      const oldIndex = orderedData.findIndex((item) => getStableId(item) === active.id)
-      const newIndex = orderedData.findIndex((item) => getStableId(item) === over.id)
+      const oldIndex = orderedData.findIndex((item) => getItemId(item) === active.id)
+      const newIndex = orderedData.findIndex((item) => getItemId(item) === over.id)
       if (oldIndex === -1 || newIndex === -1) return
       const newData = arrayMove(orderedData, oldIndex, newIndex)
       updateActiveRowAfterReorder(newData)
