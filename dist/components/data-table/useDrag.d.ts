@@ -9,11 +9,11 @@ interface UseDragParams<TData> {
     onRowReorder?: (newData: TData[]) => void;
     activeRowIndex: number | null;
     setActiveRowIndex: React.Dispatch<React.SetStateAction<number | null>>;
-    getStableId: (row: TData) => string;
+    getItemId: (row: TData) => string;
     table: Table<TData>;
     rowHeightRef: React.MutableRefObject<number>;
 }
-export declare function useDrag<TData>({ rows, selectedCount, orderedData, setOrderedData, onRowReorder, activeRowIndex, setActiveRowIndex, getStableId, table, rowHeightRef, }: UseDragParams<TData>): {
+export declare function useDrag<TData>({ rows, selectedCount, orderedData, setOrderedData, onRowReorder, activeRowIndex, setActiveRowIndex, getItemId, table, rowHeightRef, }: UseDragParams<TData>): {
     sensors: import('@dnd-kit/core').SensorDescriptor<import('@dnd-kit/core').SensorOptions>[];
     dragActiveId: string | null;
     multiDragActive: boolean;
