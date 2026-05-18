@@ -89,7 +89,7 @@ function SelfContainedThemeDemo() {
 const meta: Meta = {
   title: 'Components/Theme',
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'Theme provider and toggle for light/dark/system theme switching.',

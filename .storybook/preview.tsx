@@ -7,7 +7,7 @@ const preview: Preview = {
   globalTypes: {
     theme: {
       description: 'Theme',
-      defaultValue: 'light',
+      defaultValue: 'dark',
       toolbar: {
         title: 'Theme',
         icon: 'paintbrush',
@@ -20,9 +20,15 @@ const preview: Preview = {
   },
   decorators: [
     (Story, context) => {
-      const theme = context.globals['theme'] ?? 'light'
+      const theme = context.globals['theme'] ?? 'dark'
+
+      React.useEffect(() => {
+        document.documentElement.classList.remove('light', 'dark')
+        document.documentElement.classList.add(theme)
+      }, [theme])
+
       return (
-        <ThemeProvider defaultTheme={theme}>
+        <ThemeProvider defaultTheme={theme} key={theme}>
           <div className="min-h-screen bg-background text-foreground p-6">
             <Story />
           </div>

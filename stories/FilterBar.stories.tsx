@@ -101,7 +101,7 @@ function FilterBarWrapper({
 const meta: Meta = {
   title: 'Components/FilterBar',
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'A Linear-style filter bar with search, filter chips, and a dropdown to add filters.',

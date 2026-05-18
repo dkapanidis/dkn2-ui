@@ -66,7 +66,7 @@ function SideMenuWrapper({ collapsed: initialCollapsed = false }: { collapsed?: 
 const meta: Meta = {
   title: 'Components/SideMenu',
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'A collapsible sidebar navigation component inspired by Linear.',

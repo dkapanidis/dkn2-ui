@@ -5,7 +5,7 @@ import { ColorPicker } from '../src/components/color-picker'
 const meta: Meta = {
   title: 'Components/ColorPicker',
   parameters: {
-    layout: 'centered',
+    layout: 'fullscreen',
   },
 }
 

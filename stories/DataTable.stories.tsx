@@ -167,7 +167,7 @@ const meta: Meta<typeof DataTable> = {
   title: 'Components/DataTable',
   component: DataTable,
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'A Linear-inspired data table with sorting, filtering, and pagination.',

@@ -130,7 +130,7 @@ function CommandMenuWrapper() {
 const meta: Meta = {
   title: 'Components/CommandMenu',
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'A Linear-style command palette that opens with ⌘K.',

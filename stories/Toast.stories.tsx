@@ -120,7 +120,7 @@ function ToastDemo() {
 const meta: Meta = {
   title: 'Components/Toast',
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'Toast notifications using Sonner. Click the buttons to trigger different variants.',

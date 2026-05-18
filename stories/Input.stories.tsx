@@ -9,7 +9,7 @@ const meta: Meta<typeof Input> = {
   title: 'Components/Input',
   component: Input,
   parameters: {
-    layout: 'padded',
+    layout: 'fullscreen',
     docs: {
       description: {
         component: 'A styled text input field built on the native HTML input element.',
