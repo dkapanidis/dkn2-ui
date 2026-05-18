@@ -43,16 +43,16 @@ interface Issue {
 }
 
 const issues: Issue[] = [
-  { id: '112', code: 'RAY-112', title: 'Blog post: update blog content Postgres on ARM vs x86', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '140', code: 'RAY-140', title: 'Create benchmark comparison vs Supabase', status: 'backlog', createdAt: 'Feb 15', updatedAt: 'May 1' },
-  { id: '74', code: 'RAY-74', title: 'Give an estimation pricing page for users', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 1' },
-  { id: '110', code: 'RAY-110', title: 'Create comparison page(s)', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '111', code: 'RAY-111', title: 'Blog post: create blog content Hosted Postgres vs Managed', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '109', code: 'RAY-109', title: 'Create FAQ page', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '73', code: 'RAY-73', title: 'Calculate pricing by pod resources, not customer plan', status: 'backlog', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
-  { id: '113', code: 'RAY-113', title: 'Blog post: create Postgres on Kubernetes vs Bare metal', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '76', code: 'RAY-76', title: 'Focus on specific target audience', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 3' },
-  { id: '75', code: 'RAY-75', title: 'Simplify as much as possible support plans', status: 'backlog', label: 'UI', labelColor: 'green', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '112', code: 'ACM-112', title: 'Onboarding flow: add welcome email sequence for new signups', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'backlog', createdAt: 'Feb 15', updatedAt: 'May 1' },
+  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 1' },
+  { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '111', code: 'ACM-111', title: 'Export reports to CSV and PDF formats', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '109', code: 'ACM-109', title: 'Set up end-to-end tests for the checkout flow', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'backlog', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
+  { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'backlog', label: 'UI', labelColor: 'green', createdAt: 'Apr 2025', updatedAt: 'May 3' },
 ]
 
 function StatusIcon({ status }: { status: Issue['status'] }) {
@@ -152,8 +152,8 @@ const workspaceNavItems: NavItem[] = [
   },
   { id: 'separator-3', label: '' },
   {
-    id: 'raydb',
-    label: 'RayDB',
+    id: 'acme',
+    label: 'Acme',
     icon: Settings2Icon,
     children: [
       { id: 'triage', label: 'Triage', icon: AlertCircleIcon },
@@ -192,16 +192,16 @@ function IssuesPage() {
         header={
           !collapsed ? (
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded bg-rose-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">RA</span>
+              <div className="h-6 w-6 rounded bg-violet-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">AC</span>
               </div>
-              <span className="font-semibold text-sm">RayDB</span>
+              <span className="font-semibold text-sm">Acme</span>
               <ChevronDownIcon className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
             </div>
           ) : (
             <div className="flex justify-center">
-              <div className="h-6 w-6 rounded bg-rose-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">RA</span>
+              <div className="h-6 w-6 rounded bg-violet-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">AC</span>
               </div>
             </div>
           )
@@ -214,7 +214,7 @@ function IssuesPage() {
           <div className="flex items-center gap-1.5 text-sm">
             <SearchIcon className="h-4 w-4 text-muted-foreground" />
             <PenLineIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground mx-1">RayDB</span>
+            <span className="text-muted-foreground mx-1">Acme</span>
             <span className="text-muted-foreground">/</span>
             <span className="mx-1 font-medium">Issues</span>
             <StarIcon className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
