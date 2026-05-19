@@ -36,7 +36,7 @@ export const TableFooter = React.forwardRef<HTMLDivElement, TableFooterProps>(
           }
         }}
       >
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-foreground font-semibold text-center w-full">
           {rowCount} row{rowCount !== 1 ? 's' : ''}
         </p>
         {showPagination && (
