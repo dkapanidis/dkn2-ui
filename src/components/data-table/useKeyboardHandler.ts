@@ -33,6 +33,8 @@ export function useKeyboardHandler<TData>({
   suppressMouseRef,
   setContextMenu,
 }: UseKeyboardHandlerParams<TData>) {
+  const shiftAnchorRef = React.useRef<number | null>(null)
+
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
@@ -50,24 +52,77 @@ export function useKeyboardHandler<TData>({
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault()
         table.toggleAllPageRowsSelected(true)
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'ArrowUp' && activeRowIndex !== null) {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        if (shiftAnchorRef.current === null) shiftAnchorRef.current = activeRowIndex
+        setActiveRowIndex(0)
+        const anchor = shiftAnchorRef.current
+        const selection: Record<string, boolean> = {}
+        for (let i = 0; i <= anchor; i++) {
+          selection[rows[i].id] = true
+        }
+        table.setRowSelection(selection)
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'ArrowDown' && activeRowIndex !== null) {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        if (shiftAnchorRef.current === null) shiftAnchorRef.current = activeRowIndex
+        setActiveRowIndex(rows.length - 1)
+        const anchor = shiftAnchorRef.current
+        const selection: Record<string, boolean> = {}
+        for (let i = anchor; i <= rows.length - 1; i++) {
+          selection[rows[i].id] = true
+        }
+        table.setRowSelection(selection)
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') {
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
+        shiftAnchorRef.current = null
         setActiveRowIndex(0)
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowDown') {
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
+        shiftAnchorRef.current = null
         setActiveRowIndex(rows.length - 1)
       } else if (e.key === 'Tab' && !e.shiftKey && activeRowIndex === rows.length - 1) {
         setActiveRowIndex(null)
       } else if (e.key === 'Tab' && e.shiftKey && activeRowIndex === 0) {
         setActiveRowIndex(null)
+      } else if (e.key === 'ArrowDown' && !e.altKey && e.shiftKey && activeRowIndex !== null) {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        if (shiftAnchorRef.current === null) shiftAnchorRef.current = activeRowIndex
+        const nextIndex = Math.min(activeRowIndex + 1, rows.length - 1)
+        setActiveRowIndex(nextIndex)
+        const anchor = shiftAnchorRef.current
+        const selection: Record<string, boolean> = {}
+        for (let i = Math.min(anchor, nextIndex); i <= Math.max(anchor, nextIndex); i++) {
+          selection[rows[i].id] = true
+        }
+        table.setRowSelection(selection)
+      } else if (e.key === 'ArrowUp' && !e.altKey && e.shiftKey && activeRowIndex !== null) {
+        e.preventDefault()
+        suppressMouseRef.current = true
+        setActiveRowSource('keyboard')
+        if (shiftAnchorRef.current === null) shiftAnchorRef.current = activeRowIndex
+        const nextIndex = Math.max(activeRowIndex - 1, 0)
+        setActiveRowIndex(nextIndex)
+        const anchor = shiftAnchorRef.current
+        const selection: Record<string, boolean> = {}
+        for (let i = Math.min(anchor, nextIndex); i <= Math.max(anchor, nextIndex); i++) {
+          selection[rows[i].id] = true
+        }
+        table.setRowSelection(selection)
       } else if ((e.key === 'ArrowDown' && !e.altKey) || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
+        shiftAnchorRef.current = null
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
         )
@@ -75,6 +130,7 @@ export function useKeyboardHandler<TData>({
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
+        shiftAnchorRef.current = null
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.max(prev - 1, 0)
         )
