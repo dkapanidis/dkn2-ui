@@ -34,6 +34,10 @@ export function FilterMenu<TData>({
   const subListRef = React.useRef<HTMLDivElement>(null)
   const popoverRef = React.useRef<HTMLDivElement>(null)
   const itemRefs = React.useRef<(HTMLButtonElement | null)[]>([])
+  const mousePos = React.useRef({ x: 0, y: 0 })
+  const anchorPos = React.useRef({ x: 0, y: 0 })  // mouse pos when current item was selected
+  const aimTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const subMenuRef = React.useRef<HTMLDivElement>(null)
 
   const filteredDefs = React.useMemo(
     () => filterDefs.filter(d => d.label.toLowerCase().includes(mainSearch.toLowerCase())),
@@ -60,6 +64,36 @@ export function FilterMenu<TData>({
     const itemRect = item.getBoundingClientRect()
     const popoverRect = popover.getBoundingClientRect()
     setSubMenuTop(itemRect.top - popoverRect.top)
+  }
+
+  // Track mouse position
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => { mousePos.current = { x: e.clientX, y: e.clientY } }
+    window.addEventListener('mousemove', handler)
+    return () => {
+      window.removeEventListener('mousemove', handler)
+      if (aimTimer.current) clearTimeout(aimTimer.current)
+    }
+  }, [open])
+
+  // True when mouse is within the triangle: anchorPos → submenu top-right → submenu bottom-right
+  const isAimingAtSubmenu = () => {
+    const subEl = subMenuRef.current
+    if (!subEl) return false
+    const r = subEl.getBoundingClientRect()
+    const from = anchorPos.current
+    const curr = mousePos.current
+    if (curr.x >= from.x) return false  // moving right, not toward submenu
+    // Vectors from anchor to the two right-edge corners of the submenu
+    const dxTop = r.right - from.x;  const dyTop = r.top    - from.y
+    const dxBot = r.right - from.x;  const dyBot = r.bottom - from.y
+    // Vector from anchor to current position
+    const dx = curr.x - from.x;      const dy = curr.y - from.y
+    // Cross products: if both have same sign, curr is inside the cone
+    const crossTop = dxTop * dy - dyTop * dx
+    const crossBot = dxBot * dy - dyBot * dx
+    return crossTop * crossBot <= 0
   }
 
   // Reset state when opening
@@ -160,8 +194,10 @@ export function FilterMenu<TData>({
         {/* Submenu — floats to the left, aligned to the highlighted item */}
         {activeDef && (
           <div
+            ref={subMenuRef}
             className="absolute right-[calc(100%-8px)] w-52 bg-popover rounded-md border border-white/10 shadow-md flex flex-col overflow-hidden"
             style={{ top: subMenuTop }}
+            onMouseEnter={() => { if (aimTimer.current) clearTimeout(aimTimer.current) }}
             onKeyDown={handleSubKeyDown}
           >
             <div className="border-b border-white/10 px-3 py-2">
@@ -232,18 +268,23 @@ export function FilterMenu<TData>({
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
                 )}
-                onMouseEnter={e => {
-                  setHighlightedMain(i)
-                  setFocusedPanel('main')
-                  const popover = popoverRef.current
-                  if (popover) {
-                    const itemRect = e.currentTarget.getBoundingClientRect()
-                    const popoverRect = popover.getBoundingClientRect()
-                    setSubMenuTop(itemRect.top - popoverRect.top)
+                onMouseEnter={() => {
+                  const switchToItem = () => {
+                    anchorPos.current = mousePos.current
+                    setHighlightedMain(i)
+                    setFocusedPanel('main')
+                    updateSubMenuTop(i)
+                  }
+                  if (aimTimer.current) clearTimeout(aimTimer.current)
+                  if (activeDef && isAimingAtSubmenu()) {
+                    aimTimer.current = setTimeout(switchToItem, 200)
+                  } else {
+                    switchToItem()
                   }
                 }}
                 onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
                 onClick={() => {
+                  anchorPos.current = mousePos.current
                   setHighlightedMain(i)
                   setFocusedPanel('sub')
                   setTimeout(() => subInputRef.current?.focus(), 0)
