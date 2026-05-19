@@ -7,15 +7,12 @@ interface FilterButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 }
 
 export const FilterButton = React.forwardRef<HTMLButtonElement, FilterButtonProps>(
-  function FilterButton({ active, className, ...props }, ref) {
+  function FilterButton({ active: _active, className, ...props }, ref) {
     return (
       <button
         ref={ref}
         className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          active
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground',
+          'flex h-8 w-8 items-center justify-center rounded-full border transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring border-border bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground',
           className
         )}
         aria-label="Filter"
