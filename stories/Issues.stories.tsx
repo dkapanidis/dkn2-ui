@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
   AlertCircleIcon,
+  ArrowUpIcon,
   BellIcon,
+  ChevronsUpIcon,
   BookmarkIcon,
   ChevronDownIcon,
   CircleDashedIcon,
@@ -104,13 +106,18 @@ const issueColumns: ColumnDef<Issue>[] = [
     id: 'priority',
     accessorKey: 'priority',
     header: 'Priority',
-    cell: ({ row }) =>
-      row.original.priority ? (
+    cell: ({ row }) => {
+      const p = row.original.priority
+      if (!p) return null
+      return (
         <div className="flex items-center gap-0.5">
-          <span className="text-yellow-500 text-xs">⚠</span>
-          <span className="text-xs text-muted-foreground">M</span>
+          {p === 'high'
+            ? <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+            : <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />}
+          <span className="text-xs text-muted-foreground">{p === 'high' ? 'H' : 'M'}</span>
         </div>
-      ) : null,
+      )
+    },
     size: 36,
   },
   {
@@ -148,8 +155,8 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
     label: 'Priority',
     icon: <AlertCircleIcon className="h-3.5 w-3.5" />,
     options: [
-      { value: 'medium', label: 'Medium' },
-      { value: 'high', label: 'High' },
+      { value: 'medium', label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+      { value: 'high', label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
     ],
     filterFn: (row, values) => row.priority !== undefined && values.includes(row.priority),
   },
