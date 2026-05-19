@@ -2,7 +2,7 @@ import { CheckIcon, ChevronRightIcon } from 'lucide-react'
 import * as React from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import type { TableActiveFilter, TableFilterDef } from './types'
+import type { TableActiveFilter, TableFilterDef, TableFilterOption } from './types'
 
 interface FilterMenuProps<TData> {
   filterDefs: TableFilterDef<TData>[]
@@ -39,12 +39,42 @@ export function FilterMenu<TData>({
   const aimTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const subMenuRef = React.useRef<HTMLDivElement>(null)
 
+  type SearchResult =
+    | { type: 'filter'; def: TableFilterDef<TData> }
+    | { type: 'option'; def: TableFilterDef<TData>; opt: TableFilterOption }
+
   const filteredDefs = React.useMemo(
     () => filterDefs.filter(d => d.label.toLowerCase().includes(mainSearch.toLowerCase())),
     [filterDefs, mainSearch]
   )
 
-  const activeDef = filteredDefs[highlightedMain] ?? null
+  const searchResults = React.useMemo<SearchResult[] | null>(() => {
+    if (!mainSearch) return null
+    const q = mainSearch.toLowerCase()
+    const results: SearchResult[] = []
+    for (const def of filterDefs) {
+      if (def.label.toLowerCase().includes(q)) {
+        results.push({ type: 'filter', def })
+      } else {
+        for (const opt of def.options) {
+          if (opt.label.toLowerCase().includes(q)) {
+            results.push({ type: 'option', def, opt })
+          }
+        }
+      }
+    }
+    return results
+  }, [filterDefs, mainSearch])
+
+  const activeList = searchResults ?? filteredDefs.map(def => ({ type: 'filter' as const, def }))
+
+  const activeDef = (() => {
+    if (searchResults) {
+      const item = searchResults[highlightedMain]
+      return item?.type === 'filter' ? item.def : null
+    }
+    return filteredDefs[highlightedMain] ?? null
+  })()
 
   const filteredOptions = React.useMemo(
     () =>
@@ -110,8 +140,9 @@ export function FilterMenu<TData>({
 
   // Keep highlightedMain in bounds when search changes (but don't promote -1)
   React.useEffect(() => {
-    setHighlightedMain(prev => prev === -1 ? -1 : Math.min(prev, filteredDefs.length - 1))
-  }, [filteredDefs.length])
+    setHighlightedMain(prev => prev === -1 ? -1 : Math.min(prev, activeList.length - 1))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeList.length])
 
   // Reset sub highlight when active def changes
   React.useEffect(() => {
@@ -147,14 +178,23 @@ export function FilterMenu<TData>({
   }, [highlightedSub, focusedPanel])
 
   const handleMainKeyDown = (e: React.KeyboardEvent) => {
-    const n = filteredDefs.length
+    const n = activeList.length
     if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault()
       setHighlightedMain(prev => prev === -1 ? 0 : (prev + 1) % n)
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault()
       setHighlightedMain(prev => prev <= 0 ? n - 1 : prev - 1)
-    } else if ((e.key === 'ArrowRight' || e.key === 'Enter') && activeDef) {
+    } else if (e.key === 'Enter' && highlightedMain >= 0) {
+      e.preventDefault()
+      const item = activeList[highlightedMain]
+      if (item?.type === 'option') {
+        onToggleValue(item.def.id, item.opt.value)
+      } else if (item?.type === 'filter') {
+        setFocusedPanel('sub')
+        setTimeout(() => subInputRef.current?.focus(), 0)
+      }
+    } else if (e.key === 'ArrowRight' && activeDef) {
       e.preventDefault()
       setFocusedPanel('sub')
       setTimeout(() => subInputRef.current?.focus(), 0)
@@ -177,7 +217,7 @@ export function FilterMenu<TData>({
       setTimeout(() => mainInputRef.current?.focus(), 0)
     } else if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()
-      const opt = filteredOptions[highlightedSub]
+      const opt = highlightedSub >= 0 ? filteredOptions[highlightedSub] : filteredOptions.length === 1 ? filteredOptions[0] : undefined
       if (opt && activeDef) onToggleValue(activeDef.id, opt.value)
     }
   }
@@ -255,46 +295,71 @@ export function FilterMenu<TData>({
             <span className="text-xs text-muted-foreground border border-white/10 rounded px-1">F</span>
           </div>
           <div ref={mainListRef} className="max-h-72 overflow-y-auto p-1">
-            {filteredDefs.length === 0 && (
+            {activeList.length === 0 && (
               <p className="py-4 text-center text-xs text-muted-foreground">No filters found.</p>
             )}
-            {filteredDefs.map((def, i) => (
-              <button
-                key={def.id}
-                ref={el => { itemRefs.current[i] = el }}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
-                  i === highlightedMain
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
-                )}
-                onMouseEnter={() => {
-                  const switchToItem = () => {
+            {activeList.map((item, i) => {
+              const isHighlighted = i === highlightedMain
+              const baseClass = cn(
+                'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
+                isHighlighted
+                  ? 'bg-accent text-accent-foreground'
+                  : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
+              )
+              if (item.type === 'option') {
+                const selected = isSelected(item.def.id, item.opt.value)
+                return (
+                  <button
+                    key={`${item.def.id}:${item.opt.value}`}
+                    ref={el => { itemRefs.current[i] = el }}
+                    className={baseClass}
+                    onMouseEnter={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                    onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                    onClick={() => onToggleValue(item.def.id, item.opt.value)}
+                  >
+                    {item.opt.icon && <span className="shrink-0 text-muted-foreground">{item.opt.icon}</span>}
+                    <span className="flex-1 text-left truncate">
+                      <span className="text-muted-foreground">{item.def.label}</span>
+                      <span className="text-muted-foreground mx-1">›</span>
+                      <span>{item.opt.label}</span>
+                    </span>
+                    {selected && <CheckIcon className="h-3 w-3 shrink-0" />}
+                  </button>
+                )
+              }
+              return (
+                <button
+                  key={item.def.id}
+                  ref={el => { itemRefs.current[i] = el }}
+                  className={baseClass}
+                  onMouseEnter={() => {
+                    const switchToItem = () => {
+                      anchorPos.current = mousePos.current
+                      setHighlightedMain(i)
+                      setFocusedPanel('main')
+                      updateSubMenuTop(i)
+                    }
+                    if (aimTimer.current) clearTimeout(aimTimer.current)
+                    if (activeDef && isAimingAtSubmenu()) {
+                      aimTimer.current = setTimeout(switchToItem, 200)
+                    } else {
+                      switchToItem()
+                    }
+                  }}
+                  onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                  onClick={() => {
                     anchorPos.current = mousePos.current
                     setHighlightedMain(i)
-                    setFocusedPanel('main')
-                    updateSubMenuTop(i)
-                  }
-                  if (aimTimer.current) clearTimeout(aimTimer.current)
-                  if (activeDef && isAimingAtSubmenu()) {
-                    aimTimer.current = setTimeout(switchToItem, 200)
-                  } else {
-                    switchToItem()
-                  }
-                }}
-                onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
-                onClick={() => {
-                  anchorPos.current = mousePos.current
-                  setHighlightedMain(i)
-                  setFocusedPanel('sub')
-                  setTimeout(() => subInputRef.current?.focus(), 0)
-                }}
-              >
-                {def.icon && <span className="shrink-0 text-muted-foreground">{def.icon}</span>}
-                <span className="flex-1 text-left truncate">{def.label}</span>
-                <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            ))}
+                    setFocusedPanel('sub')
+                    setTimeout(() => subInputRef.current?.focus(), 0)
+                  }}
+                >
+                  {item.def.icon && <span className="shrink-0 text-muted-foreground">{item.def.icon}</span>}
+                  <span className="flex-1 text-left truncate">{item.def.label}</span>
+                  <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )
+            })}
           </div>
         </div>
       </PopoverContent>
