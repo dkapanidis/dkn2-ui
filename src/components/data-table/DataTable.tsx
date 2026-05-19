@@ -70,6 +70,7 @@ export function DataTable<TData, TValue>({
   const beforeSentinelRef = React.useRef<HTMLDivElement>(null)
   const paginationRef = React.useRef<HTMLDivElement>(null)
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const filterButtonRef = React.useRef<HTMLButtonElement>(null)
   const rowHeightRef = React.useRef<number>(33)
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
@@ -306,7 +307,8 @@ export function DataTable<TData, TValue>({
     if (activeRowIndex === null) return
     const el = tableContainerRef.current?.querySelector<HTMLElement>(`[data-display-index="${activeRowIndex}"]`)
     el?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-  }, [activeRowIndex])
+    if (activeRowSource === 'keyboard') filterButtonRef.current?.blur()
+  }, [activeRowIndex, activeRowSource])
 
   // Close context menu on outside interaction
   React.useEffect(() => {
@@ -365,7 +367,7 @@ export function DataTable<TData, TValue>({
                 open={filterMenuOpen}
                 onOpenChange={setFilterMenuOpen}
                 trigger={
-                  <FilterButton active={activeFilters.length > 0} />
+                  <FilterButton ref={filterButtonRef} active={activeFilters.length > 0} />
                 }
               />
             </div>
