@@ -7,7 +7,7 @@ interface FilterBarProps<TData> {
   filterDefs: TableFilterDef<TData>[]
   activeFilters: TableActiveFilter[]
   onRemoveFilter: (filterId: string) => void
-  onClearAll: () => void
+  onClearAll?: () => void
 }
 
 export function FilterBar<TData>({ filterDefs, activeFilters, onRemoveFilter, onClearAll }: FilterBarProps<TData>) {
@@ -32,7 +32,7 @@ export function FilterBar<TData>({ filterDefs, activeFilters, onRemoveFilter, on
           return (
             <span
               key={af.filterId}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-xs"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted dark:bg-muted/50 px-2 py-1 text-xs"
             >
               {def.icon && <span className="text-muted-foreground shrink-0">{def.icon}</span>}
               <span className="text-muted-foreground">{def.label}</span>
@@ -55,9 +55,11 @@ export function FilterBar<TData>({ filterDefs, activeFilters, onRemoveFilter, on
           )
         })}
       </div>
-      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearAll}>
-        Clear
-      </Button>
+      {onClearAll && (
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearAll}>
+          Clear
+        </Button>
+      )}
     </div>
   )
 }

@@ -58,11 +58,17 @@ export function DataTable<TData, TValue>({
   getRowId,
   view = 'table',
   filterDefs,
+  activeFilters: controlledActiveFilters,
+  onToggleFilterValue: controlledToggleFilterValue,
+  onRemoveFilter: controlledRemoveFilter,
+  onClearFilters: controlledClearFilters,
 }: DataTableProps<TData, TValue>) {
+  const isControlled = controlledActiveFilters !== undefined
   const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
+  const [internalActiveFilters, setInternalActiveFilters] = React.useState<TableActiveFilter[]>([])
+  const activeFilters = isControlled ? controlledActiveFilters : internalActiveFilters
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
@@ -103,7 +109,8 @@ export function DataTable<TData, TValue>({
   }, [orderedData, activeFilters, filterDefs])
 
   const handleToggleFilterValue = React.useCallback((filterId: string, value: string) => {
-    setActiveFilters(prev => {
+    if (isControlled) { controlledToggleFilterValue?.(filterId, value); return }
+    setInternalActiveFilters(prev => {
       const existing = prev.find(f => f.filterId === filterId)
       if (!existing) return [...prev, { filterId, values: [value] }]
       const newValues = existing.values.includes(value)
@@ -112,11 +119,12 @@ export function DataTable<TData, TValue>({
       if (newValues.length === 0) return prev.filter(f => f.filterId !== filterId)
       return prev.map(f => f.filterId === filterId ? { ...f, values: newValues } : f)
     })
-  }, [])
+  }, [isControlled, controlledToggleFilterValue])
 
   const handleRemoveFilter = React.useCallback((filterId: string) => {
-    setActiveFilters(prev => prev.filter(f => f.filterId !== filterId))
-  }, [])
+    if (isControlled) { controlledRemoveFilter?.(filterId); return }
+    setInternalActiveFilters(prev => prev.filter(f => f.filterId !== filterId))
+  }, [isControlled, controlledRemoveFilter])
 
   // Sync internal order when data changes externally (filter, server refresh, etc.)
   // Also follow the active row to its new position by tracking its stable ID.
@@ -346,7 +354,7 @@ export function DataTable<TData, TValue>({
   return (
     <TooltipProvider>
     <div className="flex flex-col gap-3">
-      {(searchColumn || filterDefs?.length) && (
+      {(searchColumn || (filterDefs?.length && !isControlled)) && (
         <div className="flex items-center gap-2">
           {searchColumn && (
             <Input
@@ -358,7 +366,7 @@ export function DataTable<TData, TValue>({
               className="max-w-sm h-8 text-sm"
             />
           )}
-          {filterDefs?.length && (
+          {filterDefs?.length && !isControlled && (
             <div className="ml-auto">
               <FilterMenu
                 filterDefs={filterDefs}
@@ -375,12 +383,12 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      {filterDefs?.length && activeFilters.length > 0 && (
+      {filterDefs?.length && activeFilters.length > 0 && !isControlled && (
         <FilterBar
           filterDefs={filterDefs}
           activeFilters={activeFilters}
           onRemoveFilter={handleRemoveFilter}
-          onClearAll={() => setActiveFilters([])}
+          onClearAll={() => isControlled ? controlledClearFilters?.() : setInternalActiveFilters([])}
         />
       )}
 

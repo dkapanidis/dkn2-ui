@@ -25,7 +25,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { DataTable } from '../src/components/data-table'
+import { DataTable, FilterBar, FilterButton, FilterMenu, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
 import { Toaster } from '../src/components/ui/sonner'
 import { cn } from '../src/lib/utils'
@@ -43,20 +43,23 @@ interface Issue {
 }
 
 const issues: Issue[] = [
-  { id: '112', code: 'ACM-112', title: 'Onboarding flow: add welcome email sequence for new signups', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'backlog', createdAt: 'Feb 15', updatedAt: 'May 1' },
-  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 1' },
-  { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '112', code: 'ACM-112', title: 'Onboarding flow: add welcome email sequence for new signups', status: 'todo', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'in-progress', priority: 'high', createdAt: 'Feb 15', updatedAt: 'May 1' },
+  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 1' },
+  { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'todo', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '111', code: 'ACM-111', title: 'Export reports to CSV and PDF formats', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '109', code: 'ACM-109', title: 'Set up end-to-end tests for the checkout flow', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'backlog', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
-  { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'backlog', createdAt: 'Apr 2025', updatedAt: 'May 3' },
-  { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'backlog', label: 'UI', labelColor: 'green', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '109', code: 'ACM-109', title: 'Set up end-to-end tests for the checkout flow', status: 'done', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
+  { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'todo', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'cancelled', label: 'UI', labelColor: 'blue', createdAt: 'Apr 2025', updatedAt: 'May 3' },
 ]
 
 function StatusIcon({ status }: { status: Issue['status'] }) {
   if (status === 'in-progress') return <CircleDotDashedIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+  if (status === 'done') return <CircleDotDashedIcon className="h-3.5 w-3.5 text-green-500 shrink-0" />
+  if (status === 'cancelled') return <CircleDotDashedIcon className="h-3.5 w-3.5 text-red-500/60 shrink-0" />
+  if (status === 'todo') return <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
   return <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
 }
 
@@ -126,6 +129,42 @@ const issueColumns: ColumnDef<Issue>[] = [
   },
 ]
 
+const issueFilterDefs: TableFilterDef<Issue>[] = [
+  {
+    id: 'status',
+    label: 'Status',
+    icon: <CircleDashedIcon className="h-3.5 w-3.5" />,
+    options: [
+      { value: 'backlog', label: 'Backlog', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground/60" /> },
+      { value: 'todo', label: 'Todo', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground" /> },
+      { value: 'in-progress', label: 'In Progress', icon: <CircleDotDashedIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+      { value: 'done', label: 'Done', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-green-500" /> },
+      { value: 'cancelled', label: 'Cancelled', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-red-500" /> },
+    ],
+    filterFn: (row, values) => values.includes(row.status),
+  },
+  {
+    id: 'priority',
+    label: 'Priority',
+    icon: <AlertCircleIcon className="h-3.5 w-3.5" />,
+    options: [
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+    ],
+    filterFn: (row, values) => row.priority !== undefined && values.includes(row.priority),
+  },
+  {
+    id: 'label',
+    label: 'Label',
+    icon: <BookmarkIcon className="h-3.5 w-3.5" />,
+    options: [
+      { value: 'Improvement', label: 'Improvement', icon: <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> },
+      { value: 'UI', label: 'UI', icon: <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> },
+    ],
+    filterFn: (row, values) => row.label !== undefined && values.includes(row.label),
+  },
+]
+
 const workspaceNavItems: NavItem[] = [
   { id: 'inbox', label: 'Inbox', icon: InboxIcon, badge: 7 },
   { id: 'reviews', label: 'Reviews', icon: RefreshCwIcon },
@@ -180,6 +219,26 @@ function IssuesPage() {
   const [collapsed, setCollapsed] = React.useState(false)
   const [groupOpen, setGroupOpen] = React.useState(true)
   const [data, setData] = React.useState(issues)
+  const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
+  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
+  const filterButtonRef = React.useRef<HTMLButtonElement>(null)
+
+  const handleToggleFilterValue = (filterId: string, value: string) => {
+    setActiveFilters(prev => {
+      const existing = prev.find(f => f.filterId === filterId)
+      if (!existing) return [...prev, { filterId, values: [value] }]
+      const newValues = existing.values.includes(value)
+        ? existing.values.filter(v => v !== value)
+        : [...existing.values, value]
+      if (newValues.length === 0) return prev.filter(f => f.filterId !== filterId)
+      return prev.map(f => f.filterId === filterId ? { ...f, values: newValues } : f)
+    })
+  }
+
+  const handleRemoveFilter = (filterId: string) =>
+    setActiveFilters(prev => prev.filter(f => f.filterId !== filterId))
+
+  const handleClearFilters = () => setActiveFilters([])
 
   return (
     <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
@@ -244,9 +303,18 @@ function IssuesPage() {
             </button>
           </div>
           <div className="flex items-center gap-1 text-muted-foreground">
-            <button className="p-1.5 hover:text-foreground rounded">
-              <ListFilterIcon className="h-4 w-4" />
-            </button>
+            <FilterMenu
+              filterDefs={issueFilterDefs}
+              activeFilters={activeFilters}
+              onToggleValue={handleToggleFilterValue}
+              open={filterMenuOpen}
+              onOpenChange={setFilterMenuOpen}
+              trigger={
+                <button ref={filterButtonRef} className="p-1.5 hover:text-foreground rounded outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                  <ListFilterIcon className="h-4 w-4" />
+                </button>
+              }
+            />
             <button className="p-1.5 hover:text-foreground rounded">
               <SlidersHorizontalIcon className="h-4 w-4" />
             </button>
@@ -255,6 +323,20 @@ function IssuesPage() {
             </button>
           </div>
         </div>
+
+        {/* Filter bar panel */}
+        {activeFilters.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2 border-b border-border shrink-0">
+            <FilterBar
+              filterDefs={issueFilterDefs}
+              activeFilters={activeFilters}
+              onRemoveFilter={handleRemoveFilter}
+            />
+            <div className="ml-auto">
+              <button onClick={handleClearFilters} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded hover:bg-accent transition-colors">Clear</button>
+            </div>
+          </div>
+        )}
 
         {/* Issues list */}
         <div className="flex-1 overflow-y-auto">
@@ -284,6 +366,11 @@ function IssuesPage() {
               pageSize="all"
               getRowId={(row) => row.id}
               onRowReorder={setData}
+              filterDefs={issueFilterDefs}
+              activeFilters={activeFilters}
+              onToggleFilterValue={handleToggleFilterValue}
+              onRemoveFilter={handleRemoveFilter}
+              onClearFilters={handleClearFilters}
             />
           )}
 

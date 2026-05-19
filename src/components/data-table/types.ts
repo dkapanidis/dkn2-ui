@@ -50,4 +50,9 @@ export interface DataTableProps<TData, TValue> {
   getRowId?: (row: TData) => string
   view?: 'table' | 'list'
   filterDefs?: TableFilterDef<TData>[]
+  /** Controlled filter state. When provided the internal filter button is hidden. */
+  activeFilters?: TableActiveFilter[]
+  onToggleFilterValue?: (filterId: string, value: string) => void
+  onRemoveFilter?: (filterId: string) => void
+  onClearFilters?: () => void
 }

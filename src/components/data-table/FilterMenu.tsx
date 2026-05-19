@@ -186,19 +186,29 @@ export function FilterMenu<TData>({
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault()
       setHighlightedMain(prev => prev <= 0 ? n - 1 : prev - 1)
-    } else if (e.key === 'Enter') {
-      const idx = highlightedMain >= 0 ? highlightedMain : activeList.length === 1 ? 0 : -1
-      const item = idx >= 0 ? activeList[idx] : null
-      if (item) {
-        e.preventDefault()
-        if (item.type === 'option') {
-          onToggleValue(item.def.id, item.opt.value)
-        } else if (item.type === 'filter') {
-          if (filteredOptions.length === 1) {
-            onToggleValue(item.def.id, filteredOptions[0].value)
-          } else {
-            setFocusedPanel('sub')
-            setTimeout(() => subInputRef.current?.focus(), 0)
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      // Hovered sub-option takes priority — act on it from the main panel
+      if (highlightedSub >= 0 && activeDef) {
+        const opt = filteredOptions[highlightedSub]
+        if (opt) {
+          e.preventDefault()
+          onToggleValue(activeDef.id, opt.value)
+          if (e.key === 'Enter') onOpenChange(false)
+        }
+      } else if (e.key === 'Enter') {
+        const idx = highlightedMain >= 0 ? highlightedMain : activeList.length === 1 ? 0 : -1
+        const item = idx >= 0 ? activeList[idx] : null
+        if (item) {
+          e.preventDefault()
+          if (item.type === 'option') {
+            onToggleValue(item.def.id, item.opt.value)
+          } else if (item.type === 'filter') {
+            if (filteredOptions.length === 1) {
+              onToggleValue(item.def.id, filteredOptions[0].value)
+            } else {
+              setFocusedPanel('sub')
+              setTimeout(() => subInputRef.current?.focus(), 0)
+            }
           }
         }
       }
@@ -226,7 +236,10 @@ export function FilterMenu<TData>({
     } else if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()
       const opt = highlightedSub >= 0 ? filteredOptions[highlightedSub] : filteredOptions.length === 1 ? filteredOptions[0] : undefined
-      if (opt && activeDef) onToggleValue(activeDef.id, opt.value)
+      if (opt && activeDef) {
+        onToggleValue(activeDef.id, opt.value)
+        if (e.key === 'Enter') onOpenChange(false)
+      }
     }
   }
 
@@ -275,7 +288,7 @@ export function FilterMenu<TData>({
                     )}
                     onMouseEnter={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
                     onFocus={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
-                    onClick={() => onToggleValue(activeDef.id, opt.value)}
+                    onClick={() => { onToggleValue(activeDef.id, opt.value); onOpenChange(false) }}
                   >
                     <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
                       {selected && <CheckIcon className="h-3 w-3" />}
