@@ -240,6 +240,19 @@ function IssuesPage() {
 
   const handleClearFilters = () => setActiveFilters([])
 
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault()
+        setFilterMenuOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   return (
     <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
       <Toaster richColors />

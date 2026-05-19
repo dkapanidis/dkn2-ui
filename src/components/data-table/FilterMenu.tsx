@@ -202,9 +202,11 @@ export function FilterMenu<TData>({
           e.preventDefault()
           if (item.type === 'option') {
             onToggleValue(item.def.id, item.opt.value)
+            onOpenChange(false)
           } else if (item.type === 'filter') {
             if (filteredOptions.length === 1) {
               onToggleValue(item.def.id, filteredOptions[0].value)
+              onOpenChange(false)
             } else {
               setFocusedPanel('sub')
               setTimeout(() => subInputRef.current?.focus(), 0)
