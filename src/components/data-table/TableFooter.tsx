@@ -41,7 +41,7 @@ export const TableFooter = React.forwardRef<HTMLDivElement, TableFooterProps>(
         </p>
         {showPagination && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
               Page {pageIndex + 1} of {Math.max(pageCount, 1)}
             </span>
             <Button
