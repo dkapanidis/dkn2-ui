@@ -69,9 +69,19 @@ export function FilterMenu<TData>({
 
   // Reset sub highlight when active def changes
   React.useEffect(() => {
-    setHighlightedSub(0)
+    setHighlightedSub(-1)
     setSubSearch('')
   }, [activeDef?.id])
+
+  // Deselect values hidden by the submenu search
+  React.useEffect(() => {
+    if (!activeDef || !subSearch) return
+    const visibleValues = new Set(filteredOptions.map(o => o.value))
+    const selected = activeFilters.find(f => f.filterId === activeDef.id)?.values ?? []
+    selected.filter(v => !visibleValues.has(v)).forEach(v => onToggleValue(activeDef.id, v))
+    // intentionally only runs when subSearch changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subSearch])
 
   // Scroll highlighted item into view
   React.useEffect(() => {

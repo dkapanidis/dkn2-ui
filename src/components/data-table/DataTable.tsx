@@ -86,6 +86,10 @@ export function DataTable<TData, TValue>({
   const [orderedData, setOrderedData] = React.useState<TData[]>(data)
   const suppressMouseRef = React.useRef(false)
 
+  React.useEffect(() => {
+    setRowSelection({})
+  }, [activeFilters])
+
   const filteredData = React.useMemo(() => {
     if (!activeFilters.length || !filterDefs?.length) return orderedData
     return orderedData.filter(row =>
