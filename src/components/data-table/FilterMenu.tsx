@@ -144,9 +144,9 @@ export function FilterMenu<TData>({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeList.length])
 
-  // Reset sub highlight when active def changes
+  // Auto-select first row when active def changes
   React.useEffect(() => {
-    setHighlightedSub(-1)
+    setHighlightedSub(0)
     setSubSearch('')
   }, [activeDef?.id])
 
@@ -157,6 +157,7 @@ export function FilterMenu<TData>({
 
   // Deselect values hidden by the submenu search
   React.useEffect(() => {
+    setHighlightedSub(0)
     if (!activeDef || !subSearch) return
     const visibleValues = new Set(filteredOptions.map(o => o.value))
     const selected = activeFilters.find(f => f.filterId === activeDef.id)?.values ?? []
@@ -185,14 +186,21 @@ export function FilterMenu<TData>({
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault()
       setHighlightedMain(prev => prev <= 0 ? n - 1 : prev - 1)
-    } else if (e.key === 'Enter' && highlightedMain >= 0) {
-      e.preventDefault()
-      const item = activeList[highlightedMain]
-      if (item?.type === 'option') {
-        onToggleValue(item.def.id, item.opt.value)
-      } else if (item?.type === 'filter') {
-        setFocusedPanel('sub')
-        setTimeout(() => subInputRef.current?.focus(), 0)
+    } else if (e.key === 'Enter') {
+      const idx = highlightedMain >= 0 ? highlightedMain : activeList.length === 1 ? 0 : -1
+      const item = idx >= 0 ? activeList[idx] : null
+      if (item) {
+        e.preventDefault()
+        if (item.type === 'option') {
+          onToggleValue(item.def.id, item.opt.value)
+        } else if (item.type === 'filter') {
+          if (filteredOptions.length === 1) {
+            onToggleValue(item.def.id, filteredOptions[0].value)
+          } else {
+            setFocusedPanel('sub')
+            setTimeout(() => subInputRef.current?.focus(), 0)
+          }
+        }
       }
     } else if (e.key === 'ArrowRight' && activeDef) {
       e.preventDefault()
