@@ -87,12 +87,13 @@ export function FilterMenu<TData>({
   }, [highlightedSub, focusedPanel])
 
   const handleMainKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+    const n = filteredDefs.length
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault()
-      setHighlightedMain(prev => prev === -1 ? 0 : Math.min(prev + 1, filteredDefs.length - 1))
-    } else if (e.key === 'ArrowUp') {
+      setHighlightedMain(prev => prev === -1 ? 0 : (prev + 1) % n)
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault()
-      setHighlightedMain(prev => prev <= 0 ? -1 : prev - 1)
+      setHighlightedMain(prev => prev <= 0 ? n - 1 : prev - 1)
     } else if ((e.key === 'ArrowRight' || e.key === 'Enter') && activeDef) {
       e.preventDefault()
       setFocusedPanel('sub')
@@ -103,12 +104,13 @@ export function FilterMenu<TData>({
   }
 
   const handleSubKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+    const n = filteredOptions.length
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
       e.preventDefault()
-      setHighlightedSub(prev => prev === -1 ? 0 : Math.min(prev + 1, filteredOptions.length - 1))
-    } else if (e.key === 'ArrowUp') {
+      setHighlightedSub(prev => prev === -1 ? 0 : (prev + 1) % n)
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
       e.preventDefault()
-      setHighlightedSub(prev => prev <= 0 ? -1 : prev - 1)
+      setHighlightedSub(prev => prev <= 0 ? n - 1 : prev - 1)
     } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
       e.preventDefault()
       setFocusedPanel('main')
@@ -154,12 +156,13 @@ export function FilterMenu<TData>({
                   <button
                     key={opt.value}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
                       i === highlightedSub && focusedPanel === 'sub'
                         ? 'bg-accent text-accent-foreground'
-                        : 'hover:bg-accent hover:text-accent-foreground'
+                        : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
                     )}
                     onMouseEnter={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
+                    onFocus={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
                     onClick={() => onToggleValue(activeDef.id, opt.value)}
                   >
                     <span className={cn('flex h-3.5 w-3.5 shrink-0 items-center justify-center')}>
@@ -195,12 +198,13 @@ export function FilterMenu<TData>({
               <button
                 key={def.id}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
                   i === highlightedMain
                     ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent hover:text-accent-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
                 )}
                 onMouseEnter={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
                 onClick={() => {
                   setHighlightedMain(i)
                   setFocusedPanel('sub')
