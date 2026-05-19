@@ -46,7 +46,7 @@ export function FilterBar<TData>({ filterDefs, activeFilters, onRemoveFilter, on
               </span>
               <button
                 onClick={() => onRemoveFilter(af.filterId)}
-                className="ml-0.5 rounded-sm text-muted-foreground hover:text-foreground"
+                className="ml-0.5 rounded-sm text-muted-foreground hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 aria-label={`Remove ${def.label} filter`}
               >
                 <XIcon className="h-3 w-3" />

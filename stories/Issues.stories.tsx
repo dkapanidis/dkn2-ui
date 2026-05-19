@@ -346,15 +346,13 @@ function IssuesPage() {
 
         {/* Filter bar panel */}
         {activeFilters.length > 0 && (
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-border shrink-0">
+          <div className="px-4 py-2 border-b border-border shrink-0">
             <FilterBar
               filterDefs={issueFilterDefs}
               activeFilters={activeFilters}
               onRemoveFilter={handleRemoveFilter}
+              onClearAll={handleClearFilters}
             />
-            <div className="ml-auto">
-              <button onClick={handleClearFilters} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded hover:bg-accent transition-colors">Clear</button>
-            </div>
           </div>
         )}
 
