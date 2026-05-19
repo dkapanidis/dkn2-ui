@@ -12,7 +12,7 @@ export const FilterButton = React.forwardRef<HTMLButtonElement, FilterButtonProp
       <button
         ref={ref}
         className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full border transition-colors',
+          'flex h-8 w-8 items-center justify-center rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           active
             ? 'border-primary bg-primary/10 text-primary'
             : 'border-border bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground',

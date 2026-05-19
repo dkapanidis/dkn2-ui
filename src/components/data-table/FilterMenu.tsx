@@ -23,8 +23,8 @@ export function FilterMenu<TData>({
 }: FilterMenuProps<TData>) {
   const [mainSearch, setMainSearch] = React.useState('')
   const [subSearch, setSubSearch] = React.useState('')
-  const [highlightedMain, setHighlightedMain] = React.useState(0)
-  const [highlightedSub, setHighlightedSub] = React.useState(0)
+  const [highlightedMain, setHighlightedMain] = React.useState(-1)
+  const [highlightedSub, setHighlightedSub] = React.useState(-1)
   const [focusedPanel, setFocusedPanel] = React.useState<'main' | 'sub'>('main')
 
   const mainInputRef = React.useRef<HTMLInputElement>(null)
@@ -55,16 +55,16 @@ export function FilterMenu<TData>({
     if (open) {
       setMainSearch('')
       setSubSearch('')
-      setHighlightedMain(0)
-      setHighlightedSub(0)
+      setHighlightedMain(-1)
+      setHighlightedSub(-1)
       setFocusedPanel('main')
       setTimeout(() => mainInputRef.current?.focus(), 0)
     }
   }, [open])
 
-  // Keep highlightedMain in bounds when search changes
+  // Keep highlightedMain in bounds when search changes (but don't promote -1)
   React.useEffect(() => {
-    setHighlightedMain(prev => Math.min(prev, Math.max(filteredDefs.length - 1, 0)))
+    setHighlightedMain(prev => prev === -1 ? -1 : Math.min(prev, filteredDefs.length - 1))
   }, [filteredDefs.length])
 
   // Reset sub highlight when active def changes
@@ -89,10 +89,10 @@ export function FilterMenu<TData>({
   const handleMainKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setHighlightedMain(prev => Math.min(prev + 1, filteredDefs.length - 1))
+      setHighlightedMain(prev => prev === -1 ? 0 : Math.min(prev + 1, filteredDefs.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setHighlightedMain(prev => Math.max(prev - 1, 0))
+      setHighlightedMain(prev => prev <= 0 ? -1 : prev - 1)
     } else if ((e.key === 'ArrowRight' || e.key === 'Enter') && activeDef) {
       e.preventDefault()
       setFocusedPanel('sub')
@@ -105,10 +105,10 @@ export function FilterMenu<TData>({
   const handleSubKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setHighlightedSub(prev => Math.min(prev + 1, filteredOptions.length - 1))
+      setHighlightedSub(prev => prev === -1 ? 0 : Math.min(prev + 1, filteredOptions.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setHighlightedSub(prev => Math.max(prev - 1, 0))
+      setHighlightedSub(prev => prev <= 0 ? -1 : prev - 1)
     } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
       e.preventDefault()
       setFocusedPanel('main')
@@ -125,16 +125,16 @@ export function FilterMenu<TData>({
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-auto p-0 flex overflow-hidden"
+        className="w-auto p-0 flex overflow-hidden border border-white/10"
         onOpenAutoFocus={e => e.preventDefault()}
       >
         {/* Submenu — left panel */}
         {activeDef && (
           <div
-            className="w-52 border-r flex flex-col"
+            className="w-52 border-r border-white/10 flex flex-col"
             onKeyDown={handleSubKeyDown}
           >
-            <div className="border-b px-3 py-2">
+            <div className="border-b border-white/10 px-3 py-2">
               <input
                 ref={subInputRef}
                 placeholder="Filter..."
@@ -176,7 +176,7 @@ export function FilterMenu<TData>({
 
         {/* Main menu — right panel */}
         <div className="w-52 flex flex-col" onKeyDown={handleMainKeyDown}>
-          <div className="border-b px-3 py-2 flex items-center gap-2">
+          <div className="border-b border-white/10 px-3 py-2 flex items-center gap-2">
             <input
               ref={mainInputRef}
               placeholder="Add Filter..."
