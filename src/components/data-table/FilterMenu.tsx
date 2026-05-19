@@ -26,11 +26,14 @@ export function FilterMenu<TData>({
   const [highlightedMain, setHighlightedMain] = React.useState(-1)
   const [highlightedSub, setHighlightedSub] = React.useState(-1)
   const [focusedPanel, setFocusedPanel] = React.useState<'main' | 'sub'>('main')
+  const [subMenuTop, setSubMenuTop] = React.useState(0)
 
   const mainInputRef = React.useRef<HTMLInputElement>(null)
   const subInputRef = React.useRef<HTMLInputElement>(null)
   const mainListRef = React.useRef<HTMLDivElement>(null)
   const subListRef = React.useRef<HTMLDivElement>(null)
+  const popoverRef = React.useRef<HTMLDivElement>(null)
+  const itemRefs = React.useRef<(HTMLButtonElement | null)[]>([])
 
   const filteredDefs = React.useMemo(
     () => filterDefs.filter(d => d.label.toLowerCase().includes(mainSearch.toLowerCase())),
@@ -49,6 +52,15 @@ export function FilterMenu<TData>({
 
   const isSelected = (filterId: string, value: string) =>
     activeFilters.find(f => f.filterId === filterId)?.values.includes(value) ?? false
+
+  const updateSubMenuTop = (index: number) => {
+    const item = itemRefs.current[index]
+    const popover = popoverRef.current
+    if (!item || !popover) return
+    const itemRect = item.getBoundingClientRect()
+    const popoverRect = popover.getBoundingClientRect()
+    setSubMenuTop(itemRect.top - popoverRect.top)
+  }
 
   // Reset state when opening
   React.useEffect(() => {
@@ -73,25 +85,29 @@ export function FilterMenu<TData>({
     setSubSearch('')
   }, [activeDef?.id])
 
+  // Update submenu position when highlighted item changes via keyboard
+  React.useEffect(() => {
+    if (highlightedMain >= 0) updateSubMenuTop(highlightedMain)
+  }, [highlightedMain])
+
   // Deselect values hidden by the submenu search
   React.useEffect(() => {
     if (!activeDef || !subSearch) return
     const visibleValues = new Set(filteredOptions.map(o => o.value))
     const selected = activeFilters.find(f => f.filterId === activeDef.id)?.values ?? []
     selected.filter(v => !visibleValues.has(v)).forEach(v => onToggleValue(activeDef.id, v))
-    // intentionally only runs when subSearch changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subSearch])
 
   // Scroll highlighted item into view
   React.useEffect(() => {
-    if (focusedPanel === 'main') {
+    if (focusedPanel === 'main' && highlightedMain >= 0) {
       mainListRef.current?.children[highlightedMain]?.scrollIntoView({ block: 'nearest' })
     }
   }, [highlightedMain, focusedPanel])
 
   React.useEffect(() => {
-    if (focusedPanel === 'sub') {
+    if (focusedPanel === 'sub' && highlightedSub >= 0) {
       subListRef.current?.children[highlightedSub]?.scrollIntoView({ block: 'nearest' })
     }
   }, [highlightedSub, focusedPanel])
@@ -136,14 +152,16 @@ export function FilterMenu<TData>({
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
+        ref={popoverRef}
         align="end"
-        className="w-auto p-0 flex overflow-hidden border border-white/10"
+        className="w-52 p-0 overflow-visible border border-white/10"
         onOpenAutoFocus={e => e.preventDefault()}
       >
-        {/* Submenu — left panel */}
+        {/* Submenu — floats to the left, aligned to the highlighted item */}
         {activeDef && (
           <div
-            className="w-52 border-r border-white/10 flex flex-col"
+            className="absolute right-[calc(100%-8px)] w-52 bg-popover rounded-md border border-white/10 shadow-md flex flex-col overflow-hidden"
+            style={{ top: subMenuTop }}
             onKeyDown={handleSubKeyDown}
           >
             <div className="border-b border-white/10 px-3 py-2">
@@ -175,7 +193,7 @@ export function FilterMenu<TData>({
                     onFocus={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
                     onClick={() => onToggleValue(activeDef.id, opt.value)}
                   >
-                    <span className={cn('flex h-3.5 w-3.5 shrink-0 items-center justify-center')}>
+                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
                       {selected && <CheckIcon className="h-3 w-3" />}
                     </span>
                     {opt.icon && <span className="shrink-0">{opt.icon}</span>}
@@ -187,8 +205,8 @@ export function FilterMenu<TData>({
           </div>
         )}
 
-        {/* Main menu — right panel */}
-        <div className="w-52 flex flex-col" onKeyDown={handleMainKeyDown}>
+        {/* Main menu */}
+        <div className="flex flex-col" onKeyDown={handleMainKeyDown}>
           <div className="border-b border-white/10 px-3 py-2 flex items-center gap-2">
             <input
               ref={mainInputRef}
@@ -198,7 +216,7 @@ export function FilterMenu<TData>({
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               onFocus={() => setFocusedPanel('main')}
             />
-            <span className="text-xs text-muted-foreground border border-border rounded px-1">F</span>
+            <span className="text-xs text-muted-foreground border border-white/10 rounded px-1">F</span>
           </div>
           <div ref={mainListRef} className="max-h-72 overflow-y-auto p-1">
             {filteredDefs.length === 0 && (
@@ -207,13 +225,23 @@ export function FilterMenu<TData>({
             {filteredDefs.map((def, i) => (
               <button
                 key={def.id}
+                ref={el => { itemRefs.current[i] = el }}
                 className={cn(
                   'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
                   i === highlightedMain
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground'
                 )}
-                onMouseEnter={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                onMouseEnter={e => {
+                  setHighlightedMain(i)
+                  setFocusedPanel('main')
+                  const popover = popoverRef.current
+                  if (popover) {
+                    const itemRect = e.currentTarget.getBoundingClientRect()
+                    const popoverRect = popover.getBoundingClientRect()
+                    setSubMenuTop(itemRect.top - popoverRect.top)
+                  }
+                }}
                 onFocus={() => { setHighlightedMain(i); setFocusedPanel('main') }}
                 onClick={() => {
                   setHighlightedMain(i)
