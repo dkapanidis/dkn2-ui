@@ -1,7 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { type Row, flexRender } from '@tanstack/react-table'
-import { GripVerticalIcon } from 'lucide-react'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import type { SortableRowProps } from './SortableRow'
@@ -43,13 +42,17 @@ export function ListRow<TData>({
   return (
     <div
       ref={nodeRef}
+      {...(reorderable ? attributes : {})}
+      {...(reorderable ? listeners : {})}
+      tabIndex={-1}
       style={style}
       data-display-index={displayIndex}
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 cursor-pointer select-none text-sm',
+        'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 select-none text-sm',
+        reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
-        isActive && activeRowSource === 'keyboard' && 'row-ring',
+        isActive && activeRowSource === 'keyboard' && !isDragging && !isDragGroup && 'row-ring',
         (isDragging || isDragGroup) && 'shadow-sm bg-background relative z-10',
       )}
       onClick={() => onRowClick(displayIndex)}
@@ -59,20 +62,6 @@ export function ListRow<TData>({
       {row.getVisibleCells().map((cell) => {
         const meta = cell.column.columnDef.meta as Record<string, unknown> | undefined
         const grow = meta?.grow === true
-
-        if (cell.column.id === '_reorder') {
-          return (
-            <span
-              key={cell.id}
-              {...attributes}
-              {...listeners}
-              tabIndex={-1}
-              className="flex items-center shrink-0 text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab active:cursor-grabbing outline-none"
-            >
-              <GripVerticalIcon className="h-3.5 w-3.5" />
-            </span>
-          )
-        }
 
         if (cell.column.id === '_select') {
           return (

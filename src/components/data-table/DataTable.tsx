@@ -191,25 +191,12 @@ export function DataTable<TData, TValue>({
     [getRowLabel]
   )
 
-  const reorderColumn = React.useMemo<ColumnDef<TData, unknown>>(
-    () => ({
-      id: '_reorder',
-      header: () => null,
-      cell: () => null, // rendered inside SortableRow directly
-      enableSorting: false,
-      enableColumnFilter: false,
-      size: 16,
-    }),
-    []
-  )
-
   const allColumns = React.useMemo<ColumnDef<TData, unknown>[]>(
     () => [
-      ...(onRowReorder ? [reorderColumn] : []),
       selectionColumn,
       ...(columns as ColumnDef<TData, unknown>[]),
     ],
-    [reorderColumn, selectionColumn, columns, onRowReorder]
+    [selectionColumn, columns]
   )
 
   const table = useReactTable({
@@ -490,7 +477,7 @@ export function DataTable<TData, TValue>({
                         style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                         className={cn(
                           'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
-                          (header.id === '_select' || header.id === '_reorder') && 'w-6 !pl-2 !pr-0',
+                          header.id === '_select' && 'w-6 !pl-2 !pr-0',
                           header.column.getCanSort() && 'cursor-pointer select-none'
                         )}
                         onClick={
@@ -499,7 +486,7 @@ export function DataTable<TData, TValue>({
                             : undefined
                         }
                       >
-                        {header.isPlaceholder ? null : header.id === '_select' || header.id === '_reorder' ? (
+                        {header.isPlaceholder ? null : header.id === '_select' ? (
                           flexRender(header.column.columnDef.header, header.getContext())
                         ) : (
                           <div className="flex items-center gap-1">
