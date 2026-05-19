@@ -245,6 +245,7 @@ export function DataTable<TData, TValue>({
     dragActiveId,
     multiDragActive,
     justDropped,
+    dragOccurredRef,
     customTransforms,
     handleDragStart,
     handleDragMove,
@@ -446,6 +447,7 @@ export function DataTable<TData, TValue>({
                         justDropped={justDropped}
                         onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
                         onRowClick={(i) => {
+                          if (dragOccurredRef.current) return
                           setActiveRowSource('mouse')
                           setActiveRowIndex(i)
                           row.toggleSelected()
@@ -527,6 +529,7 @@ export function DataTable<TData, TValue>({
                         justDropped={justDropped}
                         onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
                         onRowClick={(i) => {
+                          if (dragOccurredRef.current) return
                           setActiveRowSource('mouse')
                           setActiveRowIndex(i)
                           row.toggleSelected()

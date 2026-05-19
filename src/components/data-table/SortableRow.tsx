@@ -63,7 +63,7 @@ export function SortableRow<TData>({
       data-display-index={displayIndex}
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
-        'h-6 select-none',
+        'h-6 select-none outline-none',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
         isActive && activeRowSource === 'keyboard' && !isDragging && !isDragGroup && 'row-ring',

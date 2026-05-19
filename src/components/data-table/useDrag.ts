@@ -42,6 +42,7 @@ export function useDrag<TData>({
   const dragDeltaYRef = React.useRef(0)
   const [justDropped, setJustDropped] = React.useState(false)
   const justDroppedRafRef = React.useRef<number | null>(null)
+  const dragOccurredRef = React.useRef(false)
 
   React.useEffect(() => () => {
     if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
@@ -63,6 +64,7 @@ export function useDrag<TData>({
   }, [activeRowIndex, rows, table, getItemId, setActiveRowIndex])
 
   const handleDragStart = (event: DragStartEvent) => {
+    dragOccurredRef.current = true
     const id = String(event.active.id)
     setDragActiveId(id)
     setDragDeltaY(0)
@@ -85,6 +87,7 @@ export function useDrag<TData>({
     setMultiDragActive(false)
     setDragDeltaY(0)
     dragDeltaYRef.current = 0
+    setTimeout(() => { dragOccurredRef.current = false }, 0)
 
     const draggedRow = rows.find((r) => r.id === active.id)
     const isDraggedSelected = draggedRow?.getIsSelected() ?? false
@@ -157,6 +160,7 @@ export function useDrag<TData>({
     dragActiveId,
     multiDragActive,
     justDropped,
+    dragOccurredRef,
     customTransforms,
     handleDragStart,
     handleDragMove,

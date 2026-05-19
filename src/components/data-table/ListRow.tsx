@@ -49,7 +49,7 @@ export function ListRow<TData>({
       data-display-index={displayIndex}
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 select-none text-sm',
+        'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 select-none outline-none text-sm',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
         isActive && activeRowSource === 'keyboard' && !isDragging && !isDragGroup && 'row-ring',
