@@ -30,11 +30,14 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ContextMenu } from './ContextMenu'
+import { FilterBar } from './FilterBar'
+import { FilterButton } from './FilterButton'
+import { FilterMenu } from './FilterMenu'
 import { ListRow } from './ListRow'
 import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
 import { SortableRow } from './SortableRow'
-import type { DataTableProps, RowAction } from './types'
+import type { TableActiveFilter, DataTableProps, RowAction } from './types'
 import { ActionsDialog } from './ActionsDialog'
 import { TableFooter } from './TableFooter'
 import { useDrag } from './useDrag'
@@ -54,10 +57,13 @@ export function DataTable<TData, TValue>({
   onRowReorder,
   getRowId,
   view = 'table',
+  filterDefs,
 }: DataTableProps<TData, TValue>) {
   const showAll = pageSize === 'all'
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
+  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
   const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
@@ -79,6 +85,33 @@ export function DataTable<TData, TValue>({
   const [actionPage, setActionPage] = React.useState<RowAction<TData> | null>(null)
   const [orderedData, setOrderedData] = React.useState<TData[]>(data)
   const suppressMouseRef = React.useRef(false)
+
+  const filteredData = React.useMemo(() => {
+    if (!activeFilters.length || !filterDefs?.length) return orderedData
+    return orderedData.filter(row =>
+      activeFilters.every(af => {
+        if (af.values.length === 0) return true
+        const def = filterDefs.find(d => d.id === af.filterId)
+        return def ? def.filterFn(row, af.values) : true
+      })
+    )
+  }, [orderedData, activeFilters, filterDefs])
+
+  const handleToggleFilterValue = React.useCallback((filterId: string, value: string) => {
+    setActiveFilters(prev => {
+      const existing = prev.find(f => f.filterId === filterId)
+      if (!existing) return [...prev, { filterId, values: [value] }]
+      const newValues = existing.values.includes(value)
+        ? existing.values.filter(v => v !== value)
+        : [...existing.values, value]
+      if (newValues.length === 0) return prev.filter(f => f.filterId !== filterId)
+      return prev.map(f => f.filterId === filterId ? { ...f, values: newValues } : f)
+    })
+  }, [])
+
+  const handleRemoveFilter = React.useCallback((filterId: string) => {
+    setActiveFilters(prev => prev.filter(f => f.filterId !== filterId))
+  }, [])
 
   // Sync internal order when data changes externally (filter, server refresh, etc.)
   // Also follow the active row to its new position by tracking its stable ID.
@@ -167,7 +200,7 @@ export function DataTable<TData, TValue>({
   )
 
   const table = useReactTable({
-    data: orderedData,
+    data: filteredData,
     columns: allColumns,
     getRowId: getRowId ?? getStableId,
     getCoreRowModel: getCoreRowModel(),
@@ -252,6 +285,20 @@ export function DataTable<TData, TValue>({
   }, [])
 
   React.useEffect(() => {
+    if (!filterDefs?.length) return
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault()
+        setFilterMenuOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [filterDefs])
+
+  React.useEffect(() => {
     if (activeRowIndex === null) return
     const el = tableContainerRef.current?.querySelector<HTMLElement>(`[data-display-index="${activeRowIndex}"]`)
     el?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
@@ -293,17 +340,42 @@ export function DataTable<TData, TValue>({
   return (
     <TooltipProvider>
     <div className="flex flex-col gap-3">
-      {searchColumn && (
-        <div className="flex items-center">
-          <Input
-            placeholder={searchPlaceholder}
-            value={(table.getColumn(searchColumn)?.getFilterValue() as string) ?? ''}
-            onChange={(e) =>
-              table.getColumn(searchColumn)?.setFilterValue(e.target.value)
-            }
-            className="max-w-sm h-8 text-sm"
-          />
+      {(searchColumn || filterDefs?.length) && (
+        <div className="flex items-center gap-2">
+          {searchColumn && (
+            <Input
+              placeholder={searchPlaceholder}
+              value={(table.getColumn(searchColumn)?.getFilterValue() as string) ?? ''}
+              onChange={(e) =>
+                table.getColumn(searchColumn)?.setFilterValue(e.target.value)
+              }
+              className="max-w-sm h-8 text-sm"
+            />
+          )}
+          {filterDefs?.length && (
+            <div className="ml-auto">
+              <FilterMenu
+                filterDefs={filterDefs}
+                activeFilters={activeFilters}
+                onToggleValue={handleToggleFilterValue}
+                open={filterMenuOpen}
+                onOpenChange={setFilterMenuOpen}
+                trigger={
+                  <FilterButton active={activeFilters.length > 0} />
+                }
+              />
+            </div>
+          )}
         </div>
+      )}
+
+      {filterDefs?.length && activeFilters.length > 0 && (
+        <FilterBar
+          filterDefs={filterDefs}
+          activeFilters={activeFilters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={() => setActiveFilters([])}
+        />
       )}
 
       <div

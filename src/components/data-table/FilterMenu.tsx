@@ -1,0 +1,220 @@
+import { CheckIcon, ChevronRightIcon } from 'lucide-react'
+import * as React from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import type { TableActiveFilter, TableFilterDef } from './types'
+
+interface FilterMenuProps<TData> {
+  filterDefs: TableFilterDef<TData>[]
+  activeFilters: TableActiveFilter[]
+  onToggleValue: (filterId: string, value: string) => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  trigger: React.ReactNode
+}
+
+export function FilterMenu<TData>({
+  filterDefs,
+  activeFilters,
+  onToggleValue,
+  open,
+  onOpenChange,
+  trigger,
+}: FilterMenuProps<TData>) {
+  const [mainSearch, setMainSearch] = React.useState('')
+  const [subSearch, setSubSearch] = React.useState('')
+  const [highlightedMain, setHighlightedMain] = React.useState(0)
+  const [highlightedSub, setHighlightedSub] = React.useState(0)
+  const [focusedPanel, setFocusedPanel] = React.useState<'main' | 'sub'>('main')
+
+  const mainInputRef = React.useRef<HTMLInputElement>(null)
+  const subInputRef = React.useRef<HTMLInputElement>(null)
+  const mainListRef = React.useRef<HTMLDivElement>(null)
+  const subListRef = React.useRef<HTMLDivElement>(null)
+
+  const filteredDefs = React.useMemo(
+    () => filterDefs.filter(d => d.label.toLowerCase().includes(mainSearch.toLowerCase())),
+    [filterDefs, mainSearch]
+  )
+
+  const activeDef = filteredDefs[highlightedMain] ?? null
+
+  const filteredOptions = React.useMemo(
+    () =>
+      activeDef?.options.filter(o =>
+        o.label.toLowerCase().includes(subSearch.toLowerCase())
+      ) ?? [],
+    [activeDef, subSearch]
+  )
+
+  const isSelected = (filterId: string, value: string) =>
+    activeFilters.find(f => f.filterId === filterId)?.values.includes(value) ?? false
+
+  // Reset state when opening
+  React.useEffect(() => {
+    if (open) {
+      setMainSearch('')
+      setSubSearch('')
+      setHighlightedMain(0)
+      setHighlightedSub(0)
+      setFocusedPanel('main')
+      setTimeout(() => mainInputRef.current?.focus(), 0)
+    }
+  }, [open])
+
+  // Keep highlightedMain in bounds when search changes
+  React.useEffect(() => {
+    setHighlightedMain(prev => Math.min(prev, Math.max(filteredDefs.length - 1, 0)))
+  }, [filteredDefs.length])
+
+  // Reset sub highlight when active def changes
+  React.useEffect(() => {
+    setHighlightedSub(0)
+    setSubSearch('')
+  }, [activeDef?.id])
+
+  // Scroll highlighted item into view
+  React.useEffect(() => {
+    if (focusedPanel === 'main') {
+      mainListRef.current?.children[highlightedMain]?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [highlightedMain, focusedPanel])
+
+  React.useEffect(() => {
+    if (focusedPanel === 'sub') {
+      subListRef.current?.children[highlightedSub]?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [highlightedSub, focusedPanel])
+
+  const handleMainKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedMain(prev => Math.min(prev + 1, filteredDefs.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedMain(prev => Math.max(prev - 1, 0))
+    } else if ((e.key === 'ArrowRight' || e.key === 'Enter') && activeDef) {
+      e.preventDefault()
+      setFocusedPanel('sub')
+      setTimeout(() => subInputRef.current?.focus(), 0)
+    } else if (e.key === 'Escape') {
+      onOpenChange(false)
+    }
+  }
+
+  const handleSubKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedSub(prev => Math.min(prev + 1, filteredOptions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedSub(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+      e.preventDefault()
+      setFocusedPanel('main')
+      setTimeout(() => mainInputRef.current?.focus(), 0)
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault()
+      const opt = filteredOptions[highlightedSub]
+      if (opt && activeDef) onToggleValue(activeDef.id, opt.value)
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-auto p-0 flex overflow-hidden"
+        onOpenAutoFocus={e => e.preventDefault()}
+      >
+        {/* Submenu — left panel */}
+        {activeDef && (
+          <div
+            className="w-52 border-r flex flex-col"
+            onKeyDown={handleSubKeyDown}
+          >
+            <div className="border-b px-3 py-2">
+              <input
+                ref={subInputRef}
+                placeholder="Filter..."
+                value={subSearch}
+                onChange={e => setSubSearch(e.target.value)}
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                onFocus={() => setFocusedPanel('sub')}
+              />
+            </div>
+            <div ref={subListRef} className="max-h-64 overflow-y-auto p-1">
+              {filteredOptions.length === 0 && (
+                <p className="py-4 text-center text-xs text-muted-foreground">No options.</p>
+              )}
+              {filteredOptions.map((opt, i) => {
+                const selected = isSelected(activeDef.id, opt.value)
+                return (
+                  <button
+                    key={opt.value}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                      i === highlightedSub && focusedPanel === 'sub'
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-accent hover:text-accent-foreground'
+                    )}
+                    onMouseEnter={() => { setHighlightedSub(i); setFocusedPanel('sub') }}
+                    onClick={() => onToggleValue(activeDef.id, opt.value)}
+                  >
+                    <span className={cn('flex h-3.5 w-3.5 shrink-0 items-center justify-center')}>
+                      {selected && <CheckIcon className="h-3 w-3" />}
+                    </span>
+                    {opt.icon && <span className="shrink-0">{opt.icon}</span>}
+                    <span className="truncate">{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Main menu — right panel */}
+        <div className="w-52 flex flex-col" onKeyDown={handleMainKeyDown}>
+          <div className="border-b px-3 py-2 flex items-center gap-2">
+            <input
+              ref={mainInputRef}
+              placeholder="Add Filter..."
+              value={mainSearch}
+              onChange={e => setMainSearch(e.target.value)}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              onFocus={() => setFocusedPanel('main')}
+            />
+            <span className="text-xs text-muted-foreground border border-border rounded px-1">F</span>
+          </div>
+          <div ref={mainListRef} className="max-h-72 overflow-y-auto p-1">
+            {filteredDefs.length === 0 && (
+              <p className="py-4 text-center text-xs text-muted-foreground">No filters found.</p>
+            )}
+            {filteredDefs.map((def, i) => (
+              <button
+                key={def.id}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                  i === highlightedMain
+                    ? 'bg-accent text-accent-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground'
+                )}
+                onMouseEnter={() => { setHighlightedMain(i); setFocusedPanel('main') }}
+                onClick={() => {
+                  setHighlightedMain(i)
+                  setFocusedPanel('sub')
+                  setTimeout(() => subInputRef.current?.focus(), 0)
+                }}
+              >
+                {def.icon && <span className="shrink-0 text-muted-foreground">{def.icon}</span>}
+                <span className="flex-1 text-left truncate">{def.label}</span>
+                <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}

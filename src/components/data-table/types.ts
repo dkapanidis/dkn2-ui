@@ -19,6 +19,25 @@ export interface RowAction<TData> {
   destructive?: boolean
 }
 
+export interface TableFilterOption {
+  label: string
+  value: string
+  icon?: React.ReactNode
+}
+
+export interface TableFilterDef<TData> {
+  id: string
+  label: string
+  icon?: React.ReactNode
+  options: TableFilterOption[]
+  filterFn: (row: TData, selectedValues: string[]) => boolean
+}
+
+export interface TableActiveFilter {
+  filterId: string
+  values: string[]
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -30,4 +49,5 @@ export interface DataTableProps<TData, TValue> {
   onRowReorder?: (newData: TData[]) => void
   getRowId?: (row: TData) => string
   view?: 'table' | 'list'
+  filterDefs?: TableFilterDef<TData>[]
 }

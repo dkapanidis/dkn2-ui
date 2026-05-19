@@ -1,143 +1,151 @@
+import type { ColumnDef } from '@tanstack/react-table'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import {
+  CircleDotIcon,
+  CircleIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  SignalHighIcon,
+  SignalMediumIcon,
+  SignalLowIcon,
+  MinusIcon,
+} from 'lucide-react'
 import * as React from 'react'
-import { type ActiveFilter, FilterBar, type FilterOption } from '../src/components/filter-bar'
+import { DataTable, type TableFilterDef } from '../src/components/data-table'
 
-const availableFilters: FilterOption[] = [
+interface Issue {
+  id: string
+  title: string
+  status: 'backlog' | 'in_progress' | 'in_review' | 'done' | 'cancelled'
+  priority: 'urgent' | 'high' | 'medium' | 'low' | 'none'
+  assignee: string
+}
+
+const issues: Issue[] = [
+  { id: 'ISS-001', title: 'Fix login redirect loop', status: 'in_progress', priority: 'urgent', assignee: 'Alice' },
+  { id: 'ISS-002', title: 'Add dark mode support', status: 'backlog', priority: 'medium', assignee: 'Bob' },
+  { id: 'ISS-003', title: 'Improve table performance', status: 'in_review', priority: 'high', assignee: 'Alice' },
+  { id: 'ISS-004', title: 'Fix pagination bug', status: 'done', priority: 'high', assignee: 'Carol' },
+  { id: 'ISS-005', title: 'Update onboarding flow', status: 'backlog', priority: 'low', assignee: 'Bob' },
+  { id: 'ISS-006', title: 'Add keyboard shortcuts', status: 'in_progress', priority: 'medium', assignee: 'Carol' },
+  { id: 'ISS-007', title: 'Fix export to CSV', status: 'cancelled', priority: 'low', assignee: 'Alice' },
+  { id: 'ISS-008', title: 'Improve error messages', status: 'backlog', priority: 'none', assignee: 'Bob' },
+  { id: 'ISS-009', title: 'Add multi-select support', status: 'in_review', priority: 'high', assignee: 'Carol' },
+  { id: 'ISS-010', title: 'Fix mobile layout', status: 'done', priority: 'urgent', assignee: 'Alice' },
+]
+
+const statusIcon: Record<Issue['status'], React.ReactNode> = {
+  backlog: <CircleIcon className="h-3.5 w-3.5 text-muted-foreground" />,
+  in_progress: <CircleDotIcon className="h-3.5 w-3.5 text-blue-500" />,
+  in_review: <CircleDotIcon className="h-3.5 w-3.5 text-yellow-500" />,
+  done: <CircleCheckIcon className="h-3.5 w-3.5 text-green-500" />,
+  cancelled: <CircleXIcon className="h-3.5 w-3.5 text-muted-foreground" />,
+}
+
+const priorityIcon: Record<Issue['priority'], React.ReactNode> = {
+  urgent: <SignalHighIcon className="h-3.5 w-3.5 text-red-500" />,
+  high: <SignalHighIcon className="h-3.5 w-3.5 text-orange-500" />,
+  medium: <SignalMediumIcon className="h-3.5 w-3.5 text-yellow-500" />,
+  low: <SignalLowIcon className="h-3.5 w-3.5 text-blue-500" />,
+  none: <MinusIcon className="h-3.5 w-3.5 text-muted-foreground" />,
+}
+
+const columns: ColumnDef<Issue, string>[] = [
+  {
+    accessorKey: 'id',
+    header: 'ID',
+    size: 80,
+  },
+  {
+    accessorKey: 'title',
+    header: 'Title',
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1.5 capitalize">
+        {statusIcon[row.original.status]}
+        {row.original.status.replace('_', ' ')}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'priority',
+    header: 'Priority',
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1.5 capitalize">
+        {priorityIcon[row.original.priority]}
+        {row.original.priority === 'none' ? 'No priority' : row.original.priority}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'assignee',
+    header: 'Assignee',
+  },
+]
+
+const filterDefs: TableFilterDef<Issue>[] = [
   {
     id: 'status',
     label: 'Status',
-    type: 'select',
+    icon: <CircleDotIcon className="h-3.5 w-3.5" />,
     options: [
-      { label: 'Backlog', value: 'backlog' },
-      { label: 'In Progress', value: 'in_progress' },
-      { label: 'Done', value: 'done' },
-      { label: 'Cancelled', value: 'cancelled' },
+      { value: 'backlog', label: 'Backlog', icon: statusIcon.backlog },
+      { value: 'in_progress', label: 'In Progress', icon: statusIcon.in_progress },
+      { value: 'in_review', label: 'In Review', icon: statusIcon.in_review },
+      { value: 'done', label: 'Done', icon: statusIcon.done },
+      { value: 'cancelled', label: 'Cancelled', icon: statusIcon.cancelled },
     ],
+    filterFn: (row, values) => values.includes(row.status),
   },
   {
     id: 'priority',
     label: 'Priority',
-    type: 'select',
+    icon: <SignalHighIcon className="h-3.5 w-3.5" />,
     options: [
-      { label: 'Urgent', value: 'urgent' },
-      { label: 'High', value: 'high' },
-      { label: 'Medium', value: 'medium' },
-      { label: 'Low', value: 'low' },
-      { label: 'No Priority', value: 'none' },
+      { value: 'urgent', label: 'Urgent', icon: priorityIcon.urgent },
+      { value: 'high', label: 'High', icon: priorityIcon.high },
+      { value: 'medium', label: 'Medium', icon: priorityIcon.medium },
+      { value: 'low', label: 'Low', icon: priorityIcon.low },
+      { value: 'none', label: 'No Priority', icon: priorityIcon.none },
     ],
+    filterFn: (row, values) => values.includes(row.priority),
   },
   {
     id: 'assignee',
     label: 'Assignee',
-    type: 'text',
-  },
-  {
-    id: 'label',
-    label: 'Label',
-    type: 'select',
+    icon: <CircleIcon className="h-3.5 w-3.5" />,
     options: [
-      { label: 'Bug', value: 'bug' },
-      { label: 'Feature', value: 'feature' },
-      { label: 'Improvement', value: 'improvement' },
-      { label: 'Documentation', value: 'docs' },
+      { value: 'Alice', label: 'Alice' },
+      { value: 'Bob', label: 'Bob' },
+      { value: 'Carol', label: 'Carol' },
     ],
-  },
-  {
-    id: 'archived',
-    label: 'Archived',
-    type: 'boolean',
+    filterFn: (row, values) => values.includes(row.assignee),
   },
 ]
-
-function FilterBarWrapper({
-  initialFilters = [],
-  withSearch = false,
-}: {
-  initialFilters?: ActiveFilter[]
-  withSearch?: boolean
-}) {
-  const [activeFilters, setActiveFilters] = React.useState<ActiveFilter[]>(initialFilters)
-  const [searchValue, setSearchValue] = React.useState('')
-
-  const handleAdd = (filter: ActiveFilter) => {
-    setActiveFilters((prev) => [...prev.filter((f) => f.filterId !== filter.filterId), filter])
-  }
-
-  const handleRemove = (filterId: string) => {
-    setActiveFilters((prev) => prev.filter((f) => f.filterId !== filterId))
-  }
-
-  const handleClear = () => {
-    setActiveFilters([])
-    setSearchValue('')
-  }
-
-  return (
-    <div className="space-y-4">
-      <FilterBar
-        availableFilters={availableFilters}
-        activeFilters={activeFilters}
-        onAdd={handleAdd}
-        onRemove={handleRemove}
-        onClear={handleClear}
-        searchValue={withSearch ? searchValue : undefined}
-        onSearchChange={withSearch ? setSearchValue : undefined}
-        searchPlaceholder="Search issues..."
-      />
-      {activeFilters.length > 0 && (
-        <div className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
-          <p className="font-medium text-foreground mb-1">Active filters:</p>
-          {activeFilters.map((f) => (
-            <p key={f.filterId}>
-              <span className="font-mono">{f.filterId}</span>: {f.value}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 const meta: Meta = {
   title: 'Components/FilterBar',
   parameters: {
     layout: 'fullscreen',
-    docs: {
-      description: {
-        component: 'A Linear-style filter bar with search, filter chips, and a dropdown to add filters.',
-      },
-    },
   },
 }
 
 export default meta
 
-export const Empty: StoryObj = {
-  render: () => <FilterBarWrapper />,
-}
-
-export const WithSearch: StoryObj = {
-  render: () => <FilterBarWrapper withSearch />,
-}
-
-export const WithActiveFilters: StoryObj = {
+export const Default: StoryObj = {
   render: () => (
-    <FilterBarWrapper
-      initialFilters={[
-        { filterId: 'status', label: 'Status: In Progress', value: 'in_progress' },
-        { filterId: 'priority', label: 'Priority: High', value: 'high' },
-      ]}
-    />
-  ),
-}
-
-export const WithSearchAndFilters: StoryObj = {
-  render: () => (
-    <FilterBarWrapper
-      withSearch
-      initialFilters={[
-        { filterId: 'status', label: 'Status: In Progress', value: 'in_progress' },
-      ]}
-    />
+    <div className="p-6">
+      <DataTable
+        columns={columns}
+        data={issues}
+        filterDefs={filterDefs}
+        searchColumn="title"
+        searchPlaceholder="Search issues..."
+        pageSize="all"
+      />
+    </div>
   ),
 }

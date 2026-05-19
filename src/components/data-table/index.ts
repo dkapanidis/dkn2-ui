@@ -1,3 +1,4 @@
 export { DataTable } from './DataTable'
 export type { DataTableProps, RowAction } from './DataTable'
+export type { TableFilterDef, TableFilterOption, TableActiveFilter } from './types'
 export type { ColumnDef } from '@tanstack/react-table'
