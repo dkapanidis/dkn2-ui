@@ -312,6 +312,32 @@ export function DataTable<TData, TValue>({
   }, [filterDefs])
 
   React.useEffect(() => {
+    if (!onRowReorder) return
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (activeRowIndex === null) return
+      e.preventDefault()
+      suppressMouseRef.current = true
+      const direction = e.key === 'ArrowUp' ? -1 : 1
+      const from = activeRowIndex
+      const to = e.shiftKey
+        ? (direction === -1 ? 0 : orderedData.length - 1)
+        : Math.max(0, Math.min(orderedData.length - 1, from + direction))
+      if (from === to) return
+      const next = [...orderedData]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      setOrderedData(next)
+      onRowReorder(next)
+      setActiveRowIndex(to)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onRowReorder, activeRowIndex, orderedData])
+
+  React.useEffect(() => {
     if (activeRowIndex === null) return
     const el = tableContainerRef.current?.querySelector<HTMLElement>(`[data-display-index="${activeRowIndex}"]`)
     el?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
