@@ -47,16 +47,17 @@ import { useKeyboardHandler } from './useKeyboardHandler'
 export type { DataTableProps, RowAction }
 export type { ShortcutKeys } from './types'
 
-function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd }: {
+function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd, headerStyle }: {
   label: string
   icon?: React.ReactNode
   count: number
   collapsed: boolean
   onToggle: () => void
   onAdd?: () => void
+  headerStyle?: React.CSSProperties
 }) {
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none">
+    <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none" style={headerStyle}>
       <button
         onClick={onToggle}
         className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -396,18 +397,17 @@ export function DataTable<TData, TValue>({
     return newData.map(item => item === activeItem ? updatedItem : item)
   }, [groupBy, onGroupChange, getRowId, getStableId, table])
 
-  // Which group the currently-dragged row belongs to (null when no drag or no grouping)
-  const dragSourceGroupRef = React.useRef<string | null>(null)
-
   const {
     sensors,
     dragActiveId,
+    dragOverId,
     multiDragActive,
     justDropped,
     dragOccurredRef,
     customTransforms,
     handleDragStart,
     handleDragMove,
+    handleDragOver,
     handleDragEnd,
   } = useDrag({
     rows: visibleRows,
@@ -421,15 +421,39 @@ export function DataTable<TData, TValue>({
     table,
     rowHeightRef,
     onBeforeReorder,
+    grouped: !!groupedRows,
   })
 
-  // Track which group the dragged row belongs to so we can suppress cross-group transforms
-  React.useEffect(() => {
-    if (!dragActiveId || !groupBy) { dragSourceGroupRef.current = null; return }
+  // Reactive: which group the dragged row originally belongs to
+  const dragSourceGroupKey = React.useMemo(() => {
+    if (!dragActiveId || !groupBy) return null
     const idFn = getRowId ?? getStableId
     const item = orderedData.find(item => idFn(item) === dragActiveId)
-    dragSourceGroupRef.current = item ? groupBy(item) : null
+    return item ? groupBy(item) : null
   }, [dragActiveId, groupBy, orderedData, getRowId, getStableId])
+
+  // Live group key: the group the dragged row would land in at the current hover position
+  const dragLiveGroupKey = React.useMemo(() => {
+    if (!dragOverId || !groupBy) return dragSourceGroupKey
+    const overRow = visibleRows.find(r => r.id === dragOverId)
+    return overRow ? groupBy(overRow.original) : dragSourceGroupKey
+  }, [dragOverId, groupBy, visibleRows, dragSourceGroupKey])
+
+  // Compute translateY for a group header so it repositions live during cross-group drag
+  const computeGroupHeaderStyle = React.useCallback((groupKey: string): React.CSSProperties | undefined => {
+    if (!dragActiveId || !dragSourceGroupKey || !groupConfigs || multiDragActive) return undefined
+    const headerOrder = groupConfigs[groupKey]?.order
+    if (headerOrder === undefined) return undefined
+    const sourceOrder = groupConfigs[dragSourceGroupKey]?.order
+    if (sourceOrder === undefined) return undefined
+    const liveKey = dragLiveGroupKey ?? dragSourceGroupKey
+    const liveOrder = groupConfigs[liveKey]?.order
+    if (liveOrder === undefined) return undefined
+    if (sourceOrder === liveOrder) return undefined
+    const delta = (sourceOrder < headerOrder ? -1 : 0) + (liveOrder < headerOrder ? 1 : 0)
+    if (delta === 0) return undefined
+    return { transform: `translateY(${delta * rowHeightRef.current}px)`, position: 'relative' }
+  }, [dragActiveId, dragSourceGroupKey, dragLiveGroupKey, groupConfigs, multiDragActive])
 
   useKeyboardHandler({
     rowActions,
@@ -666,6 +690,7 @@ export function DataTable<TData, TValue>({
         modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div ref={tableContainerRef}>
@@ -680,12 +705,18 @@ export function DataTable<TData, TValue>({
                   Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
                     const isCollapsed = collapsedGroups.has(groupKey)
                     const config = groupConfigs?.[groupKey]
+                    const liveCount = (() => {
+                      if (!dragActiveId || dragLiveGroupKey === dragSourceGroupKey || multiDragActive) return groupRows.length
+                      if (groupKey === dragSourceGroupKey) return groupRows.length - 1
+                      if (groupKey === dragLiveGroupKey) return groupRows.length + 1
+                      return groupRows.length
+                    })()
                     return (
                       <React.Fragment key={groupKey}>
                         <GroupHeader
                           label={config?.label ?? groupKey}
                           icon={config?.icon}
-                          count={groupRows.length}
+                          count={liveCount}
                           collapsed={isCollapsed}
                           onToggle={() =>
                             setCollapsedGroups(prev => {
@@ -695,6 +726,7 @@ export function DataTable<TData, TValue>({
                               return next
                             })
                           }
+                          headerStyle={computeGroupHeaderStyle(groupKey)}
                         />
                         {!isCollapsed && groupRows.map((row) => {
                           const displayIndex = visibleRowIndexMap.get(row.id) ?? 0
@@ -714,10 +746,6 @@ export function DataTable<TData, TValue>({
                               customTranslateY={customTransforms ? customTransforms[displayIndex] : null}
                               isDragGroup={multiDragActive && row.getIsSelected()}
                               justDropped={justDropped}
-                              suppressTransform={
-                                !!dragActiveId && row.id !== dragActiveId &&
-                                !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
-                              }
                               onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
                               onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                               onRowMouseEnter={(i) => {
@@ -818,14 +846,20 @@ export function DataTable<TData, TValue>({
                     Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
                       const isCollapsed = collapsedGroups.has(groupKey)
                       const config = groupConfigs?.[groupKey]
+                      const liveCount = (() => {
+                        if (!dragActiveId || dragLiveGroupKey === dragSourceGroupKey || multiDragActive) return groupRows.length
+                        if (groupKey === dragSourceGroupKey) return groupRows.length - 1
+                        if (groupKey === dragLiveGroupKey) return groupRows.length + 1
+                        return groupRows.length
+                      })()
                       return (
                         <React.Fragment key={groupKey}>
-                          <TableRow className="hover:bg-transparent">
+                          <TableRow className="hover:bg-transparent" style={computeGroupHeaderStyle(groupKey)}>
                             <TableCell colSpan={allColumns.length} className="p-0">
                               <GroupHeader
                                 label={config?.label ?? groupKey}
                                 icon={config?.icon}
-                                count={groupRows.length}
+                                count={liveCount}
                                 collapsed={isCollapsed}
                                 onToggle={() =>
                                   setCollapsedGroups(prev => {
@@ -856,10 +890,6 @@ export function DataTable<TData, TValue>({
                                 customTranslateY={customTransforms ? customTransforms[displayIndex] : null}
                                 isDragGroup={multiDragActive && row.getIsSelected()}
                                 justDropped={justDropped}
-                                suppressTransform={
-                                  !!dragActiveId && row.id !== dragActiveId &&
-                                  !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
-                                }
                                 onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
                                 onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                                 onRowMouseEnter={(i) => {

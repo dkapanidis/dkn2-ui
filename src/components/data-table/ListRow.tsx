@@ -35,7 +35,12 @@ export function ListRow<TData>({
 
   const style: React.CSSProperties =
     customTranslateY !== null
-      ? { transform: `translateY(${customTranslateY}px)`, transition: 'none' }
+      ? {
+          transform: `translateY(${customTranslateY}px)`,
+          // The dragged row(s) must track the pointer with no lag; the rows
+          // they displace animate into place like dnd-kit's default strategy.
+          transition: isDragging || isDragGroup ? 'none' : 'transform 200ms ease',
+        }
       : justDropped || suppressTransform
         ? { transform: 'none', transition: 'none' }
         : { transform: CSS.Transform.toString(transform), transition }

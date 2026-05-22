@@ -5,6 +5,7 @@ import {
   useSensors,
   type DragEndEvent,
   type DragMoveEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
@@ -23,6 +24,7 @@ interface UseDragParams<TData> {
   table: Table<TData>
   rowHeightRef: React.MutableRefObject<number>
   onBeforeReorder?: (newData: TData[], activeId: string, overId: string | null) => TData[]
+  grouped: boolean
 }
 
 export function useDrag<TData>({
@@ -37,8 +39,10 @@ export function useDrag<TData>({
   table,
   rowHeightRef,
   onBeforeReorder,
+  grouped,
 }: UseDragParams<TData>) {
   const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
+  const [dragOverId, setDragOverId] = React.useState<string | null>(null)
   const [multiDragActive, setMultiDragActive] = React.useState(false)
   const [dragDeltaY, setDragDeltaY] = React.useState(0)
   const dragDeltaYRef = React.useRef(0)
@@ -75,8 +79,12 @@ export function useDrag<TData>({
     setMultiDragActive((draggedRow?.getIsSelected() ?? false) && selectedCount > 1)
   }
 
+  const handleDragOver = (event: DragOverEvent) => {
+    setDragOverId(event.over ? String(event.over.id) : null)
+  }
+
   const handleDragMove = (event: DragMoveEvent) => {
-    if (multiDragActive) {
+    if (multiDragActive || grouped) {
       dragDeltaYRef.current = event.delta.y
       setDragDeltaY(event.delta.y)
     }
@@ -86,6 +94,7 @@ export function useDrag<TData>({
     const { active, over } = event
     const finalDeltaY = dragDeltaYRef.current
     setDragActiveId(null)
+    setDragOverId(null)
     setMultiDragActive(false)
     setDragDeltaY(0)
     dragDeltaYRef.current = 0
@@ -135,24 +144,31 @@ export function useDrag<TData>({
     }
   }
 
+  // Custom per-row transforms drive the live drag preview. They're used for multi-row
+  // drags, and also for single-row drags when groups are present — dnd-kit's default
+  // strategy measures the gap between sortable rows, which across a group boundary
+  // includes the header height, so it shifts boundary rows too far (across the header
+  // into the wrong group). Uniform rowH shifts here keep every row within its group.
   let customTransforms: number[] | null = null
-  if (multiDragActive && dragActiveId) {
+  if (dragActiveId && (multiDragActive || grouped)) {
     const rowH = rowHeightRef.current
     const activeDomIndex = rows.findIndex((r) => r.id === dragActiveId)
     if (activeDomIndex !== -1) {
-      const selectedDomIndices = rows.map((r, i) => r.getIsSelected() ? i : -1).filter(i => i !== -1)
-      const nonSelectedDomIndices = rows.map((r, i) => !r.getIsSelected() ? i : -1).filter(i => i !== -1)
-      const groupSize = selectedDomIndices.length
-      const insertAt_original = nonSelectedDomIndices.filter(i => i < activeDomIndex).length
+      // Drag set: the selected rows in a multi-drag, otherwise just the dragged row.
+      const inDragSet = (row: Row<TData>) => multiDragActive ? row.getIsSelected() : row.id === dragActiveId
+      const draggedDomIndices = rows.map((r, i) => inDragSet(r) ? i : -1).filter(i => i !== -1)
+      const nonDraggedDomIndices = rows.map((r, i) => !inDragSet(r) ? i : -1).filter(i => i !== -1)
+      const groupSize = draggedDomIndices.length
+      const insertAt_original = nonDraggedDomIndices.filter(i => i < activeDomIndex).length
       const insertAt_float = insertAt_original + dragDeltaY / rowH
-      const insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonSelectedDomIndices.length))
+      const insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonDraggedDomIndices.length))
       customTransforms = rows.map((row, domIndex) => {
-        if (row.getIsSelected()) {
-          const groupIdx = selectedDomIndices.indexOf(domIndex)
-          const clamped = Math.max(0, Math.min(insertAt_float, nonSelectedDomIndices.length))
+        if (inDragSet(row)) {
+          const groupIdx = draggedDomIndices.indexOf(domIndex)
+          const clamped = Math.max(0, Math.min(insertAt_float, nonDraggedDomIndices.length))
           return (clamped + groupIdx - domIndex) * rowH
         }
-        const k = nonSelectedDomIndices.indexOf(domIndex)
+        const k = nonDraggedDomIndices.indexOf(domIndex)
         const target = k < insertAt ? k : k + groupSize
         return (target - domIndex) * rowH
       })
@@ -162,12 +178,14 @@ export function useDrag<TData>({
   return {
     sensors,
     dragActiveId,
+    dragOverId,
     multiDragActive,
     justDropped,
     dragOccurredRef,
     customTransforms,
     handleDragStart,
     handleDragMove,
+    handleDragOver,
     handleDragEnd,
   }
 }
