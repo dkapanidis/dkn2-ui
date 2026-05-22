@@ -91,14 +91,23 @@ export function useDrag<TData>({
 
     if (overId.startsWith(HEADER_DROPPABLE_PREFIX)) {
       if (!groupBy) return
-      newGroupKey = overId.slice(HEADER_DROPPABLE_PREFIX.length)
-      // First slot of the target group.
-      insertIdx = rest.findIndex((it) => groupBy(it) === newGroupKey)
+      const headerGroup = overId.slice(HEADER_DROPPABLE_PREFIX.length)
+      // The boundary slot directly under this header.
+      insertIdx = rest.findIndex((it) => groupBy(it) === headerGroup)
       if (insertIdx === -1) {
         // Target group currently has no other rows — place by group order.
-        const targetOrder = groupConfigs?.[newGroupKey]?.order ?? Infinity
+        const targetOrder = groupConfigs?.[headerGroup]?.order ?? Infinity
         insertIdx = rest.findIndex((it) => (groupConfigs?.[groupBy(it)]?.order ?? Infinity) > targetOrder)
         if (insertIdx === -1) insertIdx = rest.length
+        newGroupKey = headerGroup
+      } else {
+        // A header sits at a group boundary. Approaching from above joins this
+        // group as its first item; approaching from below (the block is already
+        // in this group) leaves it to become the last item of the group above.
+        const blockGroup = groupBy(block[0])
+        newGroupKey = (blockGroup === headerGroup && insertIdx > 0)
+          ? groupBy(rest[insertIdx - 1])
+          : headerGroup
       }
     } else {
       const overIdx = rest.findIndex((it) => getItemId(it) === overId)
