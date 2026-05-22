@@ -87,7 +87,8 @@ export function SortableRow<TData>({
       className={cn(
         'h-6 select-none outline-none',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        'data-[state=selected]:bg-selected/10 hover:data-[state=selected]:bg-selected/15 hover:bg-muted/25',
+        isSelected && 'bg-selected/10',
+        isActive && (isSelected ? 'bg-selected/15' : 'bg-muted/25'),
         isActive && activeRowSource === 'keyboard' && 'row-ring',
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
