@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
   AlertCircleIcon,
+  ArrowDownIcon,
   ArrowUpIcon,
   BellIcon,
   ChevronsUpIcon,
@@ -29,6 +30,7 @@ import {
 import * as React from 'react'
 import { DataTable, FilterBar, FilterButton, FilterMenu, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
 import { Toaster } from '../src/components/ui/sonner'
 import { cn } from '../src/lib/utils'
 
@@ -219,6 +221,141 @@ const workspaceNavItems: NavItem[] = [
   },
 ]
 
+type SortField = 'title' | 'status' | 'priority' | 'createdAt' | 'updatedAt'
+type SortOrder = 'asc' | 'desc'
+
+const sortFieldLabels: Record<SortField, string> = {
+  title: 'Title',
+  status: 'Status',
+  priority: 'Priority',
+  createdAt: 'Created',
+  updatedAt: 'Updated',
+}
+
+const toggleableColumns = ['code', 'label', 'priority', 'createdAt', 'updatedAt'] as const
+type ToggleableColumn = typeof toggleableColumns[number]
+
+const columnLabels: Record<ToggleableColumn, string> = {
+  code: 'ID',
+  label: 'Label',
+  priority: 'Priority',
+  createdAt: 'Created',
+  updatedAt: 'Updated',
+}
+
+interface ConfigureMenuProps {
+  sortField: SortField | null
+  sortOrder: SortOrder
+  visibleColumns: Set<ToggleableColumn>
+  onSortFieldChange: (field: SortField | null) => void
+  onSortOrderChange: (order: SortOrder) => void
+  onToggleColumn: (col: ToggleableColumn) => void
+  onReset: () => void
+}
+
+function ConfigureMenu({
+  sortField,
+  sortOrder,
+  visibleColumns,
+  onSortFieldChange,
+  onSortOrderChange,
+  onToggleColumn,
+  onReset,
+}: ConfigureMenuProps) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="p-1.5 hover:text-foreground rounded outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <SlidersHorizontalIcon className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-0 border border-white/10">
+        <div className="flex flex-col">
+          {/* Ordering section */}
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-muted-foreground">Ordering</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                  title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'asc'
+                    ? <ArrowUpIcon className="h-3.5 w-3.5" />
+                    : <ArrowDownIcon className="h-3.5 w-3.5" />}
+                </button>
+                <select
+                  value={sortField ?? ''}
+                  onChange={e => onSortFieldChange((e.target.value as SortField) || null)}
+                  className="text-sm bg-accent rounded px-2 py-1 border border-border outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                >
+                  <option value="">No ordering</option>
+                  {(Object.keys(sortFieldLabels) as SortField[]).map(f => (
+                    <option key={f} value={f}>{sortFieldLabels[f]}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Display properties section */}
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm font-medium mb-2.5">Display properties</p>
+            <div className="flex flex-wrap gap-1.5">
+              {toggleableColumns.map(col => {
+                const active = visibleColumns.has(col)
+                return (
+                  <button
+                    key={col}
+                    onClick={() => onToggleColumn(col)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                      active
+                        ? 'bg-accent border-border text-foreground font-medium'
+                        : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
+                    )}
+                  >
+                    {columnLabels[col]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end px-4 py-2">
+            <button
+              onClick={onReset}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+const priorityOrder: Record<string, number> = { high: 0, medium: 1 }
+const statusOrder: Record<string, number> = { 'in-progress': 0, todo: 1, backlog: 2, done: 3, cancelled: 4 }
+
+function sortIssues(data: Issue[], field: SortField | null, order: SortOrder): Issue[] {
+  if (!field) return data
+  return [...data].sort((a, b) => {
+    let cmp = 0
+    if (field === 'title') cmp = a.title.localeCompare(b.title)
+    else if (field === 'status') cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99)
+    else if (field === 'priority') cmp = (priorityOrder[a.priority ?? ''] ?? 99) - (priorityOrder[b.priority ?? ''] ?? 99)
+    else if (field === 'createdAt') cmp = a.createdAt.localeCompare(b.createdAt)
+    else if (field === 'updatedAt') cmp = a.updatedAt.localeCompare(b.updatedAt)
+    return order === 'asc' ? cmp : -cmp
+  })
+}
+
+const defaultVisibleColumns = new Set<ToggleableColumn>(['code', 'label', 'priority', 'createdAt', 'updatedAt'])
+
 type Tab = 'all' | 'active' | 'backlog'
 
 function IssuesPage() {
@@ -229,6 +366,34 @@ function IssuesPage() {
   const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const filterButtonRef = React.useRef<HTMLButtonElement>(null)
+  const [sortField, setSortField] = React.useState<SortField | null>(null)
+  const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc')
+  const [visibleColumns, setVisibleColumns] = React.useState<Set<ToggleableColumn>>(new Set(defaultVisibleColumns))
+
+  const handleToggleColumn = (col: ToggleableColumn) => {
+    setVisibleColumns(prev => {
+      const next = new Set(prev)
+      if (next.has(col)) next.delete(col); else next.add(col)
+      return next
+    })
+  }
+
+  const handleResetConfigure = () => {
+    setSortField(null)
+    setSortOrder('asc')
+    setVisibleColumns(new Set(defaultVisibleColumns))
+  }
+
+  const filteredColumns = React.useMemo(
+    () => issueColumns.filter(col => {
+      const id = col.id as ToggleableColumn
+      if (!toggleableColumns.includes(id as ToggleableColumn)) return true
+      return visibleColumns.has(id)
+    }),
+    [visibleColumns]
+  )
+
+  const sortedData = React.useMemo(() => sortIssues(data, sortField, sortOrder), [data, sortField, sortOrder])
 
   const handleToggleFilterValue = (filterId: string, value: string) => {
     setActiveFilters(prev => {
@@ -335,9 +500,15 @@ function IssuesPage() {
                 </button>
               }
             />
-            <button className="p-1.5 hover:text-foreground rounded">
-              <SlidersHorizontalIcon className="h-4 w-4" />
-            </button>
+            <ConfigureMenu
+              sortField={sortField}
+              sortOrder={sortOrder}
+              visibleColumns={visibleColumns}
+              onSortFieldChange={setSortField}
+              onSortOrderChange={setSortOrder}
+              onToggleColumn={handleToggleColumn}
+              onReset={handleResetConfigure}
+            />
             <button className="p-1.5 hover:text-foreground rounded">
               <TableIcon className="h-4 w-4" />
             </button>
@@ -370,7 +541,7 @@ function IssuesPage() {
             </button>
             <span className="text-sm font-medium">No project</span>
             <span className="text-yellow-500 text-xs">⚠</span>
-            <span className="text-xs text-muted-foreground">{data.length}</span>
+            <span className="text-xs text-muted-foreground">{sortedData.length}</span>
             <button className="ml-auto p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
               <PlusIcon className="h-4 w-4" />
             </button>
@@ -378,12 +549,12 @@ function IssuesPage() {
 
           {groupOpen && (
             <DataTable
-              columns={issueColumns}
-              data={data}
+              columns={filteredColumns}
+              data={sortedData}
               view="list"
               pageSize="all"
               getRowId={(row) => row.id}
-              onRowReorder={setData}
+              onRowReorder={sortField ? undefined : setData}
               filterDefs={issueFilterDefs}
               activeFilters={activeFilters}
               onToggleFilterValue={handleToggleFilterValue}
