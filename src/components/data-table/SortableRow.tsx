@@ -16,7 +16,7 @@ export interface SortableRowProps<TData> {
   justDropped: boolean
   suppressTransform?: boolean
   onMeasureHeight?: (height: number) => void
-  onRowClick: (index: number) => void
+  onRowClick: (index: number, shiftKey: boolean) => void
   onRowMouseEnter: (index: number) => void
   onContextMenu: (e: React.MouseEvent, index: number) => void
 }
@@ -71,7 +71,7 @@ export function SortableRow<TData>({
         isActive && activeRowSource === 'keyboard' && !isDragging && !isDragGroup && 'row-ring',
         (isDragging || isDragGroup) && 'shadow-sm bg-background relative z-10',
       )}
-      onClick={() => onRowClick(displayIndex)}
+      onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
       onContextMenu={(e) => onContextMenu(e, displayIndex)}
     >

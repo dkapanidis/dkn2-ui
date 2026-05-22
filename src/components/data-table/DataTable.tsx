@@ -121,6 +121,7 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
   const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
+  const anchorRowIndexRef = React.useRef<number | null>(null)
   const beforeSentinelRef = React.useRef<HTMLDivElement>(null)
   const paginationRef = React.useRef<HTMLDivElement>(null)
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
@@ -143,6 +144,7 @@ export function DataTable<TData, TValue>({
 
   React.useEffect(() => {
     setRowSelection({})
+    anchorRowIndexRef.current = null
   }, [activeFilters])
 
   const filteredData = React.useMemo(() => {
@@ -566,6 +568,25 @@ export function DataTable<TData, TValue>({
     }
   }, [contextMenu])
 
+  const handleRowClick = React.useCallback((i: number, shiftKey: boolean, toggleSelected: () => void) => {
+    if (dragOccurredRef.current) return
+    setActiveRowSource('mouse')
+    setActiveRowIndex(i)
+    if (shiftKey && anchorRowIndexRef.current !== null) {
+      const lo = Math.min(anchorRowIndexRef.current, i)
+      const hi = Math.max(anchorRowIndexRef.current, i)
+      const updates: RowSelectionState = {}
+      for (let idx = lo; idx <= hi; idx++) {
+        const r = visibleRowsRef.current[idx]
+        if (r) updates[r.id] = true
+      }
+      setRowSelection(prev => ({ ...prev, ...updates }))
+    } else {
+      anchorRowIndexRef.current = i
+      toggleSelected()
+    }
+  }, [])
+
   const handleContextMenu = (e: React.MouseEvent, rowIndex: number) => {
     if (!rowActions?.length) return
     e.preventDefault()
@@ -698,12 +719,7 @@ export function DataTable<TData, TValue>({
                                 !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
                               }
                               onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
-                              onRowClick={(i) => {
-                                if (dragOccurredRef.current) return
-                                setActiveRowSource('mouse')
-                                setActiveRowIndex(i)
-                                row.toggleSelected()
-                              }}
+                              onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                               onRowMouseEnter={(i) => {
                                 if (suppressMouseRef.current) return
                                 setActiveRowSource('mouse')
@@ -733,12 +749,7 @@ export function DataTable<TData, TValue>({
                         isDragGroup={multiDragActive && row.getIsSelected()}
                         justDropped={justDropped}
                         onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
-                        onRowClick={(i) => {
-                          if (dragOccurredRef.current) return
-                          setActiveRowSource('mouse')
-                          setActiveRowIndex(i)
-                          row.toggleSelected()
-                        }}
+                        onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {
                           if (suppressMouseRef.current) return
                           setActiveRowSource('mouse')
@@ -850,12 +861,7 @@ export function DataTable<TData, TValue>({
                                   !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
                                 }
                                 onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
-                                onRowClick={(i) => {
-                                  if (dragOccurredRef.current) return
-                                  setActiveRowSource('mouse')
-                                  setActiveRowIndex(i)
-                                  row.toggleSelected()
-                                }}
+                                onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                                 onRowMouseEnter={(i) => {
                                   if (suppressMouseRef.current) return
                                   setActiveRowSource('mouse')
@@ -884,12 +890,7 @@ export function DataTable<TData, TValue>({
                         isDragGroup={multiDragActive && row.getIsSelected()}
                         justDropped={justDropped}
                         onMeasureHeight={index === 0 ? (h) => { rowHeightRef.current = h } : undefined}
-                        onRowClick={(i) => {
-                          if (dragOccurredRef.current) return
-                          setActiveRowSource('mouse')
-                          setActiveRowIndex(i)
-                          row.toggleSelected()
-                        }}
+                        onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {
                           if (suppressMouseRef.current) return
                           setActiveRowSource('mouse')

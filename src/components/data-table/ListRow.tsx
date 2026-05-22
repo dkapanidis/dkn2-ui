@@ -56,7 +56,7 @@ export function ListRow<TData>({
         isActive && activeRowSource === 'keyboard' && !isDragging && !isDragGroup && 'row-ring',
         (isDragging || isDragGroup) && 'shadow-sm bg-background relative z-10',
       )}
-      onClick={() => onRowClick(displayIndex)}
+      onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
       onContextMenu={(e) => onContextMenu(e, displayIndex)}
     >
