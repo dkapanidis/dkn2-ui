@@ -377,7 +377,13 @@ export function DataTable<TData, TValue>({
     for (let i = activeIdx + 1; i < newData.length; i++) {
       if (isNeighbor(newData[i])) { nextNeighbor = newData[i]; break }
     }
-    const newGroupKey = prevNeighbor ? groupBy(prevNeighbor) : (nextNeighbor ? groupBy(nextNeighbor) : currentGroupKey)
+    // Only change group when both neighbors agree on the same new group.
+    // If they disagree the item sits at a group boundary — keep the current group.
+    const prevGroup = prevNeighbor ? groupBy(prevNeighbor) : null
+    const nextGroup = nextNeighbor ? groupBy(nextNeighbor) : null
+    const newGroupKey = prevGroup !== null && nextGroup !== null
+      ? (prevGroup === nextGroup ? prevGroup : currentGroupKey)
+      : (prevGroup ?? nextGroup ?? currentGroupKey)
     if (newGroupKey === currentGroupKey) return newData
     if (isMulti) {
       return newData.map(item =>
@@ -484,6 +490,22 @@ export function DataTable<TData, TValue>({
         if (insertAt === insertAt_original) return
         const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
         const vod = visualOrderedDataRef.current
+        // Detect cross-group: the unselected item being stepped over is in a different group
+        const stepOverItem = direction === 1
+          ? vod.filter(item => !selectedIdSet.has(idFn(item)))[insertAt - 1]
+          : vod.filter(item => !selectedIdSet.has(idFn(item)))[insertAt]
+        const activeGroupKey = groupBy ? groupBy(activeRow.original) : null
+        const stepOverGroupKey = stepOverItem && groupBy ? groupBy(stepOverItem) : null
+        const isCrossGroup = activeGroupKey !== null && stepOverGroupKey !== null && activeGroupKey !== stepOverGroupKey
+        if (isCrossGroup && groupBy && onGroupChange) {
+          // Don't move positions — just change the group for all selected items
+          const newGroupKey = stepOverGroupKey!
+          const next = vod.map(item => selectedIdSet.has(idFn(item)) ? onGroupChange(item, newGroupKey) : item)
+          setOrderedData(next)
+          onRowReorder(next)
+          setActiveRowIndex(activeRowIndex + (insertAt - insertAt_original))
+          return
+        }
         const selectedItems = vod.filter(item => selectedIdSet.has(idFn(item)))
         const unselectedItems = vod.filter(item => !selectedIdSet.has(idFn(item)))
         let next: TData[] = [
@@ -491,22 +513,6 @@ export function DataTable<TData, TValue>({
           ...selectedItems,
           ...unselectedItems.slice(insertAt),
         ]
-        if (groupBy && onGroupChange) {
-          const activeItemId = idFn(activeRow.original)
-          const movedIdx = next.findIndex(item => idFn(item) === activeItemId)
-          let prevNeighbor: TData | null = null
-          for (let i = movedIdx - 1; i >= 0; i--) {
-            if (!selectedIdSet.has(idFn(next[i]))) { prevNeighbor = next[i]; break }
-          }
-          let nextNeighbor: TData | null = null
-          for (let i = movedIdx + 1; i < next.length; i++) {
-            if (!selectedIdSet.has(idFn(next[i]))) { nextNeighbor = next[i]; break }
-          }
-          const newGroupKey = prevNeighbor ? groupBy(prevNeighbor) : (nextNeighbor ? groupBy(nextNeighbor) : groupBy(next[movedIdx]))
-          if (newGroupKey !== groupBy(next[movedIdx])) {
-            next = next.map(item => selectedIdSet.has(idFn(item)) && groupBy(item) !== newGroupKey ? onGroupChange(item, newGroupKey) : item)
-          }
-        }
         setOrderedData(next)
         onRowReorder(next)
         setActiveRowIndex(activeRowIndex + (insertAt - insertAt_original))
@@ -518,20 +524,21 @@ export function DataTable<TData, TValue>({
       if (targetDisplayIndex === activeRowIndex) return
       const targetRow = currentVisibleRows[targetDisplayIndex]
       const vod = visualOrderedDataRef.current
+      // When crossing a group boundary, skip arrayMove — item is already adjacent to
+      // the new group in vod, so just changing the group makes it first (DOWN) or last (UP).
+      if (groupBy && onGroupChange && groupBy(activeRow.original) !== groupBy(targetRow.original)) {
+        const newGroupKey = groupBy(targetRow.original)
+        const updated = onGroupChange(activeRow.original, newGroupKey)
+        const next = vod.map(item => idFn(item) === idFn(activeRow.original) ? updated : item)
+        setOrderedData(next)
+        onRowReorder(next)
+        setActiveRowIndex(targetDisplayIndex)
+        return
+      }
       const fromIdx = vod.findIndex(item => idFn(item) === idFn(activeRow.original))
       const toIdx = vod.findIndex(item => idFn(item) === idFn(targetRow.original))
       if (fromIdx === -1 || toIdx === -1) return
-      let next = arrayMove(vod, fromIdx, toIdx)
-      if (groupBy && onGroupChange) {
-        const movedIdx = next.findIndex(item => idFn(item) === idFn(activeRow.original))
-        const prev = movedIdx > 0 ? next[movedIdx - 1] : null
-        const after = movedIdx < next.length - 1 ? next[movedIdx + 1] : null
-        const newGroupKey = prev ? groupBy(prev) : (after ? groupBy(after) : groupBy(next[movedIdx]))
-        if (newGroupKey !== groupBy(next[movedIdx])) {
-          const updated = onGroupChange(next[movedIdx], newGroupKey)
-          next = next.map((item, i) => i === movedIdx ? updated : item)
-        }
-      }
+      const next = arrayMove(vod, fromIdx, toIdx)
       setOrderedData(next)
       onRowReorder(next)
       setActiveRowIndex(targetDisplayIndex)
