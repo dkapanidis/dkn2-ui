@@ -175,6 +175,15 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
     ],
     filterFn: (row, values) => row.label !== undefined && values.includes(row.label),
   },
+  {
+    id: 'project',
+    label: 'Project',
+    icon: <TargetIcon className="h-3.5 w-3.5" />,
+    options: [
+      { value: 'PI06', label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5 text-muted-foreground" /> },
+    ],
+    filterFn: (row, values) => row.project !== undefined && values.includes(row.project),
+  },
 ]
 
 const workspaceNavItems: NavItem[] = [
@@ -224,6 +233,7 @@ const workspaceNavItems: NavItem[] = [
   },
 ]
 
+type GroupField = 'project' | 'priority' | 'none'
 type SortField = 'title' | 'status' | 'priority' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
 
@@ -250,9 +260,11 @@ interface ConfigureMenuProps {
   sortField: SortField | null
   sortOrder: SortOrder
   visibleColumns: Set<ToggleableColumn>
+  groupField: GroupField
   onSortFieldChange: (field: SortField | null) => void
   onSortOrderChange: (order: SortOrder) => void
   onToggleColumn: (col: ToggleableColumn) => void
+  onGroupFieldChange: (field: GroupField) => void
   onReset: () => void
 }
 
@@ -260,9 +272,11 @@ function ConfigureMenu({
   sortField,
   sortOrder,
   visibleColumns,
+  groupField,
   onSortFieldChange,
   onSortOrderChange,
   onToggleColumn,
+  onGroupFieldChange,
   onReset,
 }: ConfigureMenuProps) {
   return (
@@ -303,6 +317,26 @@ function ConfigureMenu({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+
+          {/* Grouping section */}
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-muted-foreground">Grouping</span>
+              <Select
+                value={groupField}
+                onValueChange={v => onGroupFieldChange(v as GroupField)}
+              >
+                <SelectTrigger className="h-7 text-sm w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="project">Project</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -348,9 +382,15 @@ function ConfigureMenu({
 
 const defaultVisibleColumns = new Set<ToggleableColumn>(['code', 'label', 'priority', 'createdAt', 'updatedAt'])
 
-const issueGroupConfigs: Record<string, GroupConfig> = {
+const projectGroupConfigs: Record<string, GroupConfig> = {
   'PI06': { label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5" /> },
   '': { label: 'No project' },
+}
+
+const priorityGroupConfigs: Record<string, GroupConfig> = {
+  'high': { label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
+  'medium': { label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+  '': { label: 'No priority' },
 }
 
 type Tab = 'all' | 'active' | 'backlog'
@@ -366,6 +406,7 @@ function IssuesPage() {
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc')
   const [visibleColumns, setVisibleColumns] = React.useState<Set<ToggleableColumn>>(new Set(defaultVisibleColumns))
   const [view, setView] = React.useState<'list' | 'table'>('list')
+  const [groupField, setGroupField] = React.useState<GroupField>('project')
 
   const handleToggleColumn = (col: ToggleableColumn) => {
     setVisibleColumns(prev => {
@@ -379,6 +420,7 @@ function IssuesPage() {
     setSortField(null)
     setSortOrder('asc')
     setVisibleColumns(new Set(defaultVisibleColumns))
+    setGroupField('project')
   }
 
   const filteredColumns = React.useMemo(
@@ -513,9 +555,11 @@ function IssuesPage() {
               sortField={sortField}
               sortOrder={sortOrder}
               visibleColumns={visibleColumns}
+              groupField={groupField}
               onSortFieldChange={setSortField}
               onSortOrderChange={setSortOrder}
               onToggleColumn={handleToggleColumn}
+              onGroupFieldChange={setGroupField}
               onReset={handleResetConfigure}
             />
             <button
@@ -556,9 +600,21 @@ function IssuesPage() {
             onClearFilters={handleClearFilters}
             sorting={tableSorting}
             onSortingChange={handleSortingChange}
-            groupBy={(row) => row.project ?? ''}
-            groupConfigs={issueGroupConfigs}
-            onGroupChange={(row, newKey) => ({ ...row, project: newKey || undefined })}
+            groupBy={
+              groupField === 'project' ? (row) => row.project ?? '' :
+              groupField === 'priority' ? (row) => row.priority ?? '' :
+              undefined
+            }
+            groupConfigs={
+              groupField === 'project' ? projectGroupConfigs :
+              groupField === 'priority' ? priorityGroupConfigs :
+              undefined
+            }
+            onGroupChange={
+              groupField === 'project' ? (row, newKey) => ({ ...row, project: newKey || undefined }) :
+              groupField === 'priority' ? (row, newKey) => ({ ...row, priority: (newKey || undefined) as Issue['priority'] }) :
+              undefined
+            }
           />
 
           {/* Footer */}
