@@ -503,7 +503,7 @@ export function DataTable<TData, TValue>({
           const next = vod.map(item => selectedIdSet.has(idFn(item)) ? onGroupChange(item, newGroupKey) : item)
           setOrderedData(next)
           onRowReorder(next)
-          setActiveRowIndex(activeRowIndex + (insertAt - insertAt_original))
+          setActiveRowIndex(activeRowIndex)
           return
         }
         const selectedItems = vod.filter(item => selectedIdSet.has(idFn(item)))
@@ -532,7 +532,7 @@ export function DataTable<TData, TValue>({
         const next = vod.map(item => idFn(item) === idFn(activeRow.original) ? updated : item)
         setOrderedData(next)
         onRowReorder(next)
-        setActiveRowIndex(targetDisplayIndex)
+        setActiveRowIndex(activeRowIndex)
         return
       }
       const fromIdx = vod.findIndex(item => idFn(item) === idFn(activeRow.original))
