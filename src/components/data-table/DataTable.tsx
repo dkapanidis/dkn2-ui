@@ -329,14 +329,30 @@ export function DataTable<TData, TValue>({
     const activeIdx = newData.findIndex(item => idFn(item) === activeId)
     if (activeIdx === -1) return newData
     const activeItem = newData[activeIdx]
-    const prevItem = activeIdx > 0 ? newData[activeIdx - 1] : null
-    const nextItem = activeIdx < newData.length - 1 ? newData[activeIdx + 1] : null
-    const newGroupKey = prevItem ? groupBy(prevItem) : (nextItem ? groupBy(nextItem) : groupBy(activeItem))
     const currentGroupKey = groupBy(activeItem)
+    const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
+    const isMulti = selectedIdSet.has(activeId) && selectedIdSet.size > 1
+    // Skip over other selected items to find the nearest unselected neighbor —
+    // selected items all have stale group keys at this point
+    const isNeighbor = (item: TData) => !isMulti || !selectedIdSet.has(idFn(item))
+    let prevNeighbor: TData | null = null
+    for (let i = activeIdx - 1; i >= 0; i--) {
+      if (isNeighbor(newData[i])) { prevNeighbor = newData[i]; break }
+    }
+    let nextNeighbor: TData | null = null
+    for (let i = activeIdx + 1; i < newData.length; i++) {
+      if (isNeighbor(newData[i])) { nextNeighbor = newData[i]; break }
+    }
+    const newGroupKey = prevNeighbor ? groupBy(prevNeighbor) : (nextNeighbor ? groupBy(nextNeighbor) : currentGroupKey)
     if (newGroupKey === currentGroupKey) return newData
+    if (isMulti) {
+      return newData.map(item =>
+        selectedIdSet.has(idFn(item)) && groupBy(item) !== newGroupKey ? onGroupChange(item, newGroupKey) : item
+      )
+    }
     const updatedItem = onGroupChange(activeItem, newGroupKey)
     return newData.map(item => item === activeItem ? updatedItem : item)
-  }, [groupBy, onGroupChange, getRowId, getStableId])
+  }, [groupBy, onGroupChange, getRowId, getStableId, table])
 
   // Which group the currently-dragged row belongs to (null when no drag or no grouping)
   const dragSourceGroupRef = React.useRef<string | null>(null)
