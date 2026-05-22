@@ -3,7 +3,7 @@ import {
   closestCenter,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -435,21 +435,37 @@ export function DataTable<TData, TValue>({
       e.preventDefault()
       suppressMouseRef.current = true
       const direction = e.key === 'ArrowUp' ? -1 : 1
-      const from = activeRowIndex
-      const to = e.shiftKey
-        ? (direction === -1 ? 0 : orderedData.length - 1)
-        : Math.max(0, Math.min(orderedData.length - 1, from + direction))
-      if (from === to) return
-      const next = [...orderedData]
-      const [item] = next.splice(from, 1)
-      next.splice(to, 0, item)
+      const idFn = getRowId ?? getStableId
+      const currentVisibleRows = visibleRowsRef.current
+      const activeRow = currentVisibleRows[activeRowIndex]
+      if (!activeRow) return
+      const targetDisplayIndex = e.shiftKey
+        ? (direction === -1 ? 0 : currentVisibleRows.length - 1)
+        : Math.max(0, Math.min(currentVisibleRows.length - 1, activeRowIndex + direction))
+      if (targetDisplayIndex === activeRowIndex) return
+      const targetRow = currentVisibleRows[targetDisplayIndex]
+      const fromIdx = orderedData.findIndex(item => idFn(item) === idFn(activeRow.original))
+      const toIdx = orderedData.findIndex(item => idFn(item) === idFn(targetRow.original))
+      if (fromIdx === -1 || toIdx === -1) return
+      let next = arrayMove(orderedData, fromIdx, toIdx)
+      // Apply group change if the item crossed a group boundary
+      if (groupBy && onGroupChange) {
+        const movedIdx = next.findIndex(item => idFn(item) === idFn(activeRow.original))
+        const prev = movedIdx > 0 ? next[movedIdx - 1] : null
+        const after = movedIdx < next.length - 1 ? next[movedIdx + 1] : null
+        const newGroupKey = prev ? groupBy(prev) : (after ? groupBy(after) : groupBy(next[movedIdx]))
+        if (newGroupKey !== groupBy(next[movedIdx])) {
+          const updated = onGroupChange(next[movedIdx], newGroupKey)
+          next = next.map((item, i) => i === movedIdx ? updated : item)
+        }
+      }
       setOrderedData(next)
       onRowReorder(next)
-      setActiveRowIndex(to)
+      setActiveRowIndex(targetDisplayIndex)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onRowReorder, activeRowIndex, orderedData])
+  }, [onRowReorder, activeRowIndex, orderedData, getRowId, getStableId, groupBy, onGroupChange])
 
   React.useEffect(() => {
     if (activeRowIndex === null) return

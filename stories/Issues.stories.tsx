@@ -608,7 +608,7 @@ function IssuesPage() {
             view={view}
             pageSize="all"
             getRowId={(row) => row.id}
-            onRowReorder={setData}
+            onRowReorder={sortField === null ? setData : undefined}
             filterDefs={issueFilterDefs}
             activeFilters={activeFilters}
             onToggleFilterValue={handleToggleFilterValue}
