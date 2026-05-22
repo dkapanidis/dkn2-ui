@@ -59,37 +59,55 @@ export function ListRow<TData>({
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
       onContextMenu={(e) => onContextMenu(e, displayIndex)}
     >
-      {row.getVisibleCells().map((cell) => {
-        const meta = cell.column.columnDef.meta as Record<string, unknown> | undefined
-        const grow = meta?.grow === true
+      {(() => {
+        const cells = row.getVisibleCells()
+        const growIdx = cells.findIndex(c => (c.column.columnDef.meta as Record<string, unknown> | undefined)?.grow === true)
+        const leadingCells = growIdx === -1 ? cells : cells.slice(0, growIdx + 1)
+        const trailingCells = growIdx === -1 ? [] : cells.slice(growIdx + 1)
 
-        if (cell.column.id === '_select') {
-          return (
-            <span
-              key={cell.id}
-              className={cn(
-                'flex items-center shrink-0',
-                !isSelected && activeRowIndex !== displayIndex && 'opacity-0',
-              )}
-            >
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </span>
-          )
-        }
-
-        const size = cell.column.columnDef.size
         return (
-          <div
-            key={cell.id}
-            className={cn(
-              grow ? 'flex-1 min-w-0 truncate' : 'shrink-0',
+          <>
+            {leadingCells.map((cell) => {
+              const meta = cell.column.columnDef.meta as Record<string, unknown> | undefined
+              const grow = meta?.grow === true
+
+              if (cell.column.id === '_select') {
+                return (
+                  <span
+                    key={cell.id}
+                    className={cn(
+                      'flex items-center shrink-0',
+                      !isSelected && activeRowIndex !== displayIndex && 'opacity-0',
+                    )}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </span>
+                )
+              }
+
+              const size = cell.column.columnDef.size
+              return (
+                <div
+                  key={cell.id}
+                  className={cn(grow ? 'flex-1 min-w-0 truncate' : 'shrink-0')}
+                  style={!grow && size ? { width: size } : undefined}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </div>
+              )
+            })}
+            {trailingCells.length > 0 && (
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                {trailingCells.map((cell) => (
+                  <div key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </div>
+                ))}
+              </div>
             )}
-            style={!grow && size ? { width: size } : undefined}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </div>
+          </>
         )
-      })}
+      })()}
     </div>
   )
 }
