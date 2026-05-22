@@ -76,6 +76,10 @@ export function ListRow<TData>({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     disabled: !reorderable,
+    // Animate while actively sorting (rows reposition smoothly as you drag
+    // over them), but not on drop — live reflow already placed the row, so a
+    // settle animation would replay that move and cause a flip.
+    animateLayoutChanges: ({ isSorting }) => isSorting === true,
   })
 
   const isSelected = row.getIsSelected()

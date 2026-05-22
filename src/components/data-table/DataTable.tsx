@@ -399,8 +399,28 @@ export function DataTable<TData, TValue>({
     groupConfigs,
   })
 
-  // The row rendered in the floating DragOverlay that follows the cursor.
-  const overlayRow = dragActiveId ? rows.find(r => r.id === dragActiveId) ?? null : null
+  // The rows rendered in the floating DragOverlay that follows the cursor.
+  // For a multi-row drag every dragged row is shown stacked in visible order.
+  const overlayRows = React.useMemo(() => {
+    if (!dragActiveId) return []
+    return visibleRows.filter(r => draggingIds.has(r.id))
+  }, [dragActiveId, draggingIds, visibleRows])
+
+  // dnd-kit anchors the overlay at the grabbed row's slot. When the grabbed row
+  // is not the first of the selection, shift the stack up by the height of the
+  // rows above it so the grabbed row stays aligned under the cursor.
+  const overlayOffset = React.useMemo(() => {
+    if (!dragActiveId || !tableContainerRef.current) return 0
+    let offset = 0
+    for (const r of overlayRows) {
+      if (r.id === dragActiveId) break
+      const idx = visibleRowIndexMap.get(r.id)
+      if (idx === undefined) continue
+      const el = tableContainerRef.current.querySelector<HTMLElement>(`[data-display-index="${idx}"]`)
+      if (el) offset += el.offsetHeight
+    }
+    return offset
+  }, [dragActiveId, overlayRows, visibleRowIndexMap])
 
   useKeyboardHandler({
     rowActions,
@@ -844,18 +864,37 @@ export function DataTable<TData, TValue>({
             </Table>
           )}
         </div>
-        <DragOverlay>
-          {overlayRow ? (
+        <DragOverlay dropAnimation={null}>
+          {overlayRows.length > 0 ? (
             view === 'list' ? (
-              <div className={cn(listRowClassName, 'bg-background shadow-lg rounded-sm cursor-grabbing')}>
-                <ListRowCells row={overlayRow} isSelected={overlayRow.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+              <div
+                className="cursor-grabbing rounded-sm shadow-lg overflow-hidden"
+                style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
+              >
+                {overlayRows.map((r) => (
+                  <div
+                    key={r.id}
+                    className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+                  >
+                    <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                  </div>
+                ))}
               </div>
             ) : (
-              <Table className="border-separate border-spacing-0 bg-background shadow-lg cursor-grabbing">
+              <Table
+                className="border-separate border-spacing-0 bg-background shadow-lg cursor-grabbing"
+                style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
+              >
                 <TableBody>
-                  <TableRow className="h-6">
-                    <SortableRowCells row={overlayRow} isSelected={overlayRow.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
-                  </TableRow>
+                  {overlayRows.map((r) => (
+                    <TableRow
+                      key={r.id}
+                      className="h-6 data-[state=selected]:bg-selected/10"
+                      data-state={r.getIsSelected() ? 'selected' : undefined}
+                    >
+                      <SortableRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             )
