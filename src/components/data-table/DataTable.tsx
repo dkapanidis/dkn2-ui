@@ -714,11 +714,85 @@ export function DataTable<TData, TValue>({
               </TableHeader>
               <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
                 <TableBody>
-                  {rows.length ? (
-                    rows.map((row, index) => {
+                  {visibleRows.length === 0 && !groupedRows ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={allColumns.length}
+                        className="h-24 text-center text-muted-foreground text-sm"
+                      >
+                        No results found.
+                      </TableCell>
+                    </TableRow>
+                  ) : groupedRows ? (
+                    Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
+                      const isCollapsed = collapsedGroups.has(groupKey)
+                      const config = groupConfigs?.[groupKey]
+                      return (
+                        <React.Fragment key={groupKey}>
+                          <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={allColumns.length} className="p-0">
+                              <GroupHeader
+                                label={config?.label ?? groupKey}
+                                icon={config?.icon}
+                                count={groupRows.length}
+                                collapsed={isCollapsed}
+                                onToggle={() =>
+                                  setCollapsedGroups(prev => {
+                                    const next = new Set(prev)
+                                    if (next.has(groupKey)) next.delete(groupKey)
+                                    else next.add(groupKey)
+                                    return next
+                                  })
+                                }
+                              />
+                            </TableCell>
+                          </TableRow>
+                          {!isCollapsed && groupRows.map((row) => {
+                            const displayIndex = visibleRowIndexMap.get(row.id) ?? 0
+                            const isSelected = row.getIsSelected()
+                            const prevRow = visibleRows[displayIndex - 1]
+                            const nextRow = visibleRows[displayIndex + 1]
+                            const prevSelected = prevRow?.getIsSelected() ?? false
+                            const nextSelected = nextRow?.getIsSelected() ?? false
+                            return (
+                              <SortableRow
+                                key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
+                                row={row}
+                                displayIndex={displayIndex}
+                                activeRowIndex={activeRowIndex}
+                                activeRowSource={activeRowSource}
+                                reorderable={!!onRowReorder}
+                                customTranslateY={customTransforms ? customTransforms[displayIndex] : null}
+                                isDragGroup={multiDragActive && row.getIsSelected()}
+                                justDropped={justDropped}
+                                suppressTransform={
+                                  !!dragActiveId && row.id !== dragActiveId &&
+                                  !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
+                                }
+                                onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
+                                onRowClick={(i) => {
+                                  if (dragOccurredRef.current) return
+                                  setActiveRowSource('mouse')
+                                  setActiveRowIndex(i)
+                                  row.toggleSelected()
+                                }}
+                                onRowMouseEnter={(i) => {
+                                  if (suppressMouseRef.current) return
+                                  setActiveRowSource('mouse')
+                                  setActiveRowIndex(i)
+                                }}
+                                onContextMenu={handleContextMenu}
+                              />
+                            )
+                          })}
+                        </React.Fragment>
+                      )
+                    })
+                  ) : (
+                    visibleRows.map((row, index) => {
                       const isSelected = row.getIsSelected()
-                      const prevSelected = rows[index - 1]?.getIsSelected() ?? false
-                      const nextSelected = rows[index + 1]?.getIsSelected() ?? false
+                      const prevSelected = visibleRows[index - 1]?.getIsSelected() ?? false
+                      const nextSelected = visibleRows[index + 1]?.getIsSelected() ?? false
                       return <SortableRow
                         key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
                         row={row}
@@ -744,15 +818,6 @@ export function DataTable<TData, TValue>({
                         onContextMenu={handleContextMenu}
                       />
                     })
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={allColumns.length}
-                        className="h-24 text-center text-muted-foreground text-sm"
-                      >
-                        No results found.
-                      </TableCell>
-                    </TableRow>
                   )}
                 </TableBody>
               </SortableContext>
