@@ -439,6 +439,44 @@ export function DataTable<TData, TValue>({
       const currentVisibleRows = visibleRowsRef.current
       const activeRow = currentVisibleRows[activeRowIndex]
       if (!activeRow) return
+      const isMulti = activeRow.getIsSelected() && selectedCount > 1
+      if (isMulti) {
+        const nonSelectedVisibleIndices = currentVisibleRows
+          .map((r, i) => r.getIsSelected() ? -1 : i).filter(i => i !== -1)
+        const insertAt_original = nonSelectedVisibleIndices.filter(i => i < activeRowIndex).length
+        const insertAt = e.shiftKey
+          ? (direction === -1 ? 0 : nonSelectedVisibleIndices.length)
+          : Math.max(0, Math.min(nonSelectedVisibleIndices.length, insertAt_original + direction))
+        if (insertAt === insertAt_original) return
+        const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
+        const selectedItems = orderedData.filter(item => selectedIdSet.has(idFn(item)))
+        const unselectedItems = orderedData.filter(item => !selectedIdSet.has(idFn(item)))
+        let next: TData[] = [
+          ...unselectedItems.slice(0, insertAt),
+          ...selectedItems,
+          ...unselectedItems.slice(insertAt),
+        ]
+        if (groupBy && onGroupChange) {
+          const activeItemId = idFn(activeRow.original)
+          const movedIdx = next.findIndex(item => idFn(item) === activeItemId)
+          let prevNeighbor: TData | null = null
+          for (let i = movedIdx - 1; i >= 0; i--) {
+            if (!selectedIdSet.has(idFn(next[i]))) { prevNeighbor = next[i]; break }
+          }
+          let nextNeighbor: TData | null = null
+          for (let i = movedIdx + 1; i < next.length; i++) {
+            if (!selectedIdSet.has(idFn(next[i]))) { nextNeighbor = next[i]; break }
+          }
+          const newGroupKey = prevNeighbor ? groupBy(prevNeighbor) : (nextNeighbor ? groupBy(nextNeighbor) : groupBy(next[movedIdx]))
+          if (newGroupKey !== groupBy(next[movedIdx])) {
+            next = next.map(item => selectedIdSet.has(idFn(item)) && groupBy(item) !== newGroupKey ? onGroupChange(item, newGroupKey) : item)
+          }
+        }
+        setOrderedData(next)
+        onRowReorder(next)
+        setActiveRowIndex(activeRowIndex + (insertAt - insertAt_original))
+        return
+      }
       const targetDisplayIndex = e.shiftKey
         ? (direction === -1 ? 0 : currentVisibleRows.length - 1)
         : Math.max(0, Math.min(currentVisibleRows.length - 1, activeRowIndex + direction))
@@ -448,7 +486,6 @@ export function DataTable<TData, TValue>({
       const toIdx = orderedData.findIndex(item => idFn(item) === idFn(targetRow.original))
       if (fromIdx === -1 || toIdx === -1) return
       let next = arrayMove(orderedData, fromIdx, toIdx)
-      // Apply group change if the item crossed a group boundary
       if (groupBy && onGroupChange) {
         const movedIdx = next.findIndex(item => idFn(item) === idFn(activeRow.original))
         const prev = movedIdx > 0 ? next[movedIdx - 1] : null
