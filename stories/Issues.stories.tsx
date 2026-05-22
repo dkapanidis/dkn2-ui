@@ -29,7 +29,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { DataTable, FilterBar, FilterButton, FilterMenu, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
+import { DataTable, FilterBar, FilterButton, FilterMenu, type GroupConfig, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../src/components/ui/select'
@@ -46,18 +46,19 @@ interface Issue {
   priority?: 'medium' | 'high'
   createdAt: string
   updatedAt: string
+  project?: string
 }
 
 const issues: Issue[] = [
   { id: '112', code: 'ACM-112', title: 'Onboarding flow: add welcome email sequence for new signups', status: 'todo', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'in-progress', priority: 'high', createdAt: 'Feb 15', updatedAt: 'May 1' },
-  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 1' },
+  { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'in-progress', priority: 'high', createdAt: 'Feb 15', updatedAt: 'May 1', project: 'PI06' },
+  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 1', project: 'PI06' },
   { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'todo', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '111', code: 'ACM-111', title: 'Export reports to CSV and PDF formats', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '109', code: 'ACM-109', title: 'Set up end-to-end tests for the checkout flow', status: 'done', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
   { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'todo', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'todo', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 3', project: 'PI06' },
   { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'cancelled', label: 'UI', labelColor: 'blue', createdAt: 'Apr 2025', updatedAt: 'May 3' },
 ]
 
@@ -347,12 +348,16 @@ function ConfigureMenu({
 
 const defaultVisibleColumns = new Set<ToggleableColumn>(['code', 'label', 'priority', 'createdAt', 'updatedAt'])
 
+const issueGroupConfigs: Record<string, GroupConfig> = {
+  'PI06': { label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5" /> },
+  '': { label: 'No project' },
+}
+
 type Tab = 'all' | 'active' | 'backlog'
 
 function IssuesPage() {
   const [activeTab, setActiveTab] = React.useState<Tab>('all')
   const [collapsed, setCollapsed] = React.useState(false)
-  const [groupOpen, setGroupOpen] = React.useState(true)
   const [data, setData] = React.useState(issues)
   const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
@@ -537,41 +542,24 @@ function IssuesPage() {
 
         {/* Issues list */}
         <div className="flex-1 overflow-y-auto">
-          {/* Group header */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-border sticky top-0 bg-background z-10">
-            <button onClick={() => setGroupOpen((v) => !v)}>
-              <ChevronDownIcon
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform',
-                  !groupOpen && '-rotate-90',
-                )}
-              />
-            </button>
-            <span className="text-sm font-medium">No project</span>
-            <span className="text-yellow-500 text-xs">⚠</span>
-            <span className="text-xs text-muted-foreground">{data.length}</span>
-            <button className="ml-auto p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
-              <PlusIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          {groupOpen && (
-            <DataTable
-              columns={filteredColumns}
-              data={data}
-              view={view}
-              pageSize="all"
-              getRowId={(row) => row.id}
-              onRowReorder={sortField ? undefined : setData}
-              filterDefs={issueFilterDefs}
-              activeFilters={activeFilters}
-              onToggleFilterValue={handleToggleFilterValue}
-              onRemoveFilter={handleRemoveFilter}
-              onClearFilters={handleClearFilters}
-              sorting={tableSorting}
-              onSortingChange={handleSortingChange}
-            />
-          )}
+          <DataTable
+            columns={filteredColumns}
+            data={data}
+            view={view}
+            pageSize="all"
+            getRowId={(row) => row.id}
+            onRowReorder={setData}
+            filterDefs={issueFilterDefs}
+            activeFilters={activeFilters}
+            onToggleFilterValue={handleToggleFilterValue}
+            onRemoveFilter={handleRemoveFilter}
+            onClearFilters={handleClearFilters}
+            sorting={tableSorting}
+            onSortingChange={handleSortingChange}
+            groupBy={(row) => row.project ?? ''}
+            groupConfigs={issueGroupConfigs}
+            onGroupChange={(row, newKey) => ({ ...row, project: newKey || undefined })}
+          />
 
           {/* Footer */}
           <div className="flex items-center justify-center gap-1 py-4 text-xs text-muted-foreground">

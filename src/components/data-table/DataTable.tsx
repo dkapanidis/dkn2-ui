@@ -17,7 +17,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, PlusIcon } from 'lucide-react'
 import * as React from 'react'
 import { Input } from '@/components/ui/input'
 import {
@@ -47,6 +47,40 @@ import { useKeyboardHandler } from './useKeyboardHandler'
 export type { DataTableProps, RowAction }
 export type { ShortcutKeys } from './types'
 
+function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd }: {
+  label: string
+  icon?: React.ReactNode
+  count: number
+  collapsed: boolean
+  onToggle: () => void
+  onAdd?: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none">
+      <button
+        onClick={onToggle}
+        className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+      >
+        <ChevronDownIcon
+          className={cn('h-3.5 w-3.5 transition-transform', collapsed && '-rotate-90')}
+        />
+      </button>
+      {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}
+      <span className="text-sm font-medium">{label}</span>
+      <span className="text-yellow-500 text-xs">⚠</span>
+      <span className="text-xs text-muted-foreground">{count}</span>
+      {onAdd && (
+        <button
+          className="ml-auto p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+          onClick={onAdd}
+        >
+          <PlusIcon className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -65,6 +99,9 @@ export function DataTable<TData, TValue>({
   onClearFilters: controlledClearFilters,
   sorting: controlledSorting,
   onSortingChange: onControlledSortingChange,
+  groupBy,
+  groupConfigs,
+  onGroupChange,
 }: DataTableProps<TData, TValue>) {
   const isControlled = controlledActiveFilters !== undefined
   const showAll = pageSize === 'all'
@@ -80,6 +117,7 @@ export function DataTable<TData, TValue>({
   const [internalActiveFilters, setInternalActiveFilters] = React.useState<TableActiveFilter[]>([])
   const activeFilters = isControlled ? controlledActiveFilters : internalActiveFilters
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set())
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null)
   const [activeRowSource, setActiveRowSource] = React.useState<'keyboard' | 'mouse'>('mouse')
@@ -138,11 +176,11 @@ export function DataTable<TData, TValue>({
 
   // Sync internal order when data changes externally (filter, server refresh, etc.)
   // Also follow the active row to its new position by tracking its stable ID.
-  // rows/activeRowIndex are intentionally captured at the moment data changes (old ordering).
+  // visibleRowsRef/activeRowIndex are intentionally captured at the moment data changes (old ordering).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (activeRowIndex !== null) {
-      const activeId = rows[activeRowIndex]?.id
+      const activeId = visibleRowsRef.current[activeRowIndex]?.id
       if (activeId) {
         const idFn = getRowId ?? getStableId
         const newIdx = data.findIndex((item) => idFn(item) === activeId)
@@ -235,12 +273,47 @@ export function DataTable<TData, TValue>({
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
   const selectedCount = selectedRows.length
 
+  // Compute groups preserving insertion order
+  const groupedRows = React.useMemo(() => {
+    if (!groupBy) return null
+    const groups = new Map<string, typeof rows>()
+    for (const row of rows) {
+      const key = groupBy(row.original)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(row)
+    }
+    return groups
+  }, [rows, groupBy])
+
+  // Keep a ref to visibleRows so the data-change effect can read the current value
+  // without being re-triggered on every render (stale-closure pattern, like `rows` above).
+  const visibleRowsRef = React.useRef<typeof rows>([])
+
+  // Visible rows: exclude rows whose group is collapsed
+  const visibleRows = React.useMemo(() => {
+    if (!groupedRows) return rows
+    const result: typeof rows = []
+    for (const [key, groupRows] of groupedRows) {
+      if (!collapsedGroups.has(key)) result.push(...groupRows)
+    }
+    return result
+  }, [groupedRows, collapsedGroups, rows])
+
+  visibleRowsRef.current = visibleRows
+
+  // Fast lookup: row id → visible display index
+  const visibleRowIndexMap = React.useMemo(() => {
+    const map = new Map<string, number>()
+    visibleRows.forEach((row, i) => map.set(row.id, i))
+    return map
+  }, [visibleRows])
+
   // Rows that actions apply to: explicit selection, or the keyboard-navigated row as implicit target
   const effectiveRows: TData[] =
     selectedCount > 0
       ? selectedRows
-      : activeRowIndex !== null && rows[activeRowIndex]
-        ? [rows[activeRowIndex].original]
+      : activeRowIndex !== null && visibleRows[activeRowIndex]
+        ? [visibleRows[activeRowIndex].original]
         : []
 
   const actionsHeading = (() => {
@@ -249,6 +322,21 @@ export function DataTable<TData, TValue>({
       return getRowLabel ? getRowLabel(effectiveRows[0]) : '1 row'
     return `${effectiveRows.length} rows`
   })()
+
+  const onBeforeReorder = React.useCallback((newData: TData[], activeId: string): TData[] => {
+    if (!groupBy || !onGroupChange) return newData
+    const idFn = getRowId ?? getStableId
+    const activeIdx = newData.findIndex(item => idFn(item) === activeId)
+    if (activeIdx === -1) return newData
+    const activeItem = newData[activeIdx]
+    const prevItem = activeIdx > 0 ? newData[activeIdx - 1] : null
+    const nextItem = activeIdx < newData.length - 1 ? newData[activeIdx + 1] : null
+    const newGroupKey = prevItem ? groupBy(prevItem) : (nextItem ? groupBy(nextItem) : groupBy(activeItem))
+    const currentGroupKey = groupBy(activeItem)
+    if (newGroupKey === currentGroupKey) return newData
+    const updatedItem = onGroupChange(activeItem, newGroupKey)
+    return newData.map(item => item === activeItem ? updatedItem : item)
+  }, [groupBy, onGroupChange, getRowId, getStableId])
 
   const {
     sensors,
@@ -261,7 +349,7 @@ export function DataTable<TData, TValue>({
     handleDragMove,
     handleDragEnd,
   } = useDrag({
-    rows,
+    rows: visibleRows,
     selectedCount,
     orderedData,
     setOrderedData,
@@ -271,11 +359,12 @@ export function DataTable<TData, TValue>({
     getItemId: getRowId ?? getStableId,
     table,
     rowHeightRef,
+    onBeforeReorder,
   })
 
   useKeyboardHandler({
     rowActions,
-    rows,
+    rows: visibleRows,
     activeRowIndex,
     selectedCount,
     contextMenu,
@@ -373,7 +462,7 @@ export function DataTable<TData, TValue>({
   const pageIndex = table.getState().pagination.pageIndex
   const pageCount = table.getPageCount()
 
-  const rowIds = rows.map((r) => r.id)
+  const rowIds = visibleRows.map((r) => r.id)
 
   return (
     <TooltipProvider>
@@ -421,7 +510,7 @@ export function DataTable<TData, TValue>({
         tabIndex={0}
         className="sr-only"
         onFocus={(e) => {
-          if (rows.length === 0) return
+          if (visibleRows.length === 0) return
           if (paginationRef.current?.contains(e.relatedTarget as Node)) return
           setActiveRowIndex(0)
           setActiveRowSource('keyboard')
@@ -439,7 +528,68 @@ export function DataTable<TData, TValue>({
           {view === 'list' ? (
             <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
               <div>
-                {rows.length ? (
+                {visibleRows.length === 0 && !groupedRows ? (
+                  <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+                    No results found.
+                  </div>
+                ) : groupedRows ? (
+                  Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
+                    const isCollapsed = collapsedGroups.has(groupKey)
+                    const config = groupConfigs?.[groupKey]
+                    return (
+                      <React.Fragment key={groupKey}>
+                        <GroupHeader
+                          label={config?.label ?? groupKey}
+                          icon={config?.icon}
+                          count={groupRows.length}
+                          collapsed={isCollapsed}
+                          onToggle={() =>
+                            setCollapsedGroups(prev => {
+                              const next = new Set(prev)
+                              if (next.has(groupKey)) next.delete(groupKey)
+                              else next.add(groupKey)
+                              return next
+                            })
+                          }
+                        />
+                        {!isCollapsed && groupRows.map((row) => {
+                          const displayIndex = visibleRowIndexMap.get(row.id) ?? 0
+                          const isSelected = row.getIsSelected()
+                          const prevRow = visibleRows[displayIndex - 1]
+                          const nextRow = visibleRows[displayIndex + 1]
+                          const prevSelected = prevRow?.getIsSelected() ?? false
+                          const nextSelected = nextRow?.getIsSelected() ?? false
+                          return (
+                            <ListRow
+                              key={`${row.id}-${isSelected ? 1 : 0}-${prevSelected ? 1 : 0}-${nextSelected ? 1 : 0}`}
+                              row={row}
+                              displayIndex={displayIndex}
+                              activeRowIndex={activeRowIndex}
+                              activeRowSource={activeRowSource}
+                              reorderable={!!onRowReorder}
+                              customTranslateY={customTransforms ? customTransforms[displayIndex] : null}
+                              isDragGroup={multiDragActive && row.getIsSelected()}
+                              justDropped={justDropped}
+                              onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
+                              onRowClick={(i) => {
+                                if (dragOccurredRef.current) return
+                                setActiveRowSource('mouse')
+                                setActiveRowIndex(i)
+                                row.toggleSelected()
+                              }}
+                              onRowMouseEnter={(i) => {
+                                if (suppressMouseRef.current) return
+                                setActiveRowSource('mouse')
+                                setActiveRowIndex(i)
+                              }}
+                              onContextMenu={handleContextMenu}
+                            />
+                          )
+                        })}
+                      </React.Fragment>
+                    )
+                  })
+                ) : (
                   rows.map((row, index) => {
                     const isSelected = row.getIsSelected()
                     const prevSelected = rows[index - 1]?.getIsSelected() ?? false
@@ -471,10 +621,6 @@ export function DataTable<TData, TValue>({
                       />
                     )
                   })
-                ) : (
-                  <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-                    No results found.
-                  </div>
                 )}
               </div>
             </SortableContext>
@@ -579,7 +725,7 @@ export function DataTable<TData, TValue>({
         onPreviousPage={() => table.previousPage()}
         onNextPage={() => table.nextPage()}
         onShiftTabToTable={() => {
-          setActiveRowIndex(rows.length - 1)
+          setActiveRowIndex(visibleRows.length - 1)
           setActiveRowSource('keyboard')
           beforeSentinelRef.current?.focus()
         }}

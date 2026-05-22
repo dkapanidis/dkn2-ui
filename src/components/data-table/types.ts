@@ -38,6 +38,11 @@ export interface TableActiveFilter {
   values: string[]
 }
 
+export interface GroupConfig {
+  label: string
+  icon?: React.ReactNode
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -58,4 +63,10 @@ export interface DataTableProps<TData, TValue> {
   /** Controlled sorting state. When provided, header clicks update via onSortingChange. */
   sorting?: SortingState
   onSortingChange?: (sorting: SortingState) => void
+  /** Grouping: function returning the group key for a row */
+  groupBy?: (row: TData) => string
+  /** Display config per group key */
+  groupConfigs?: Record<string, GroupConfig>
+  /** Called when a row is dragged into a different group; return the updated row */
+  onGroupChange?: (row: TData, newGroupKey: string) => TData
 }

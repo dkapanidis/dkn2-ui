@@ -22,6 +22,7 @@ interface UseDragParams<TData> {
   getItemId: (row: TData) => string
   table: Table<TData>
   rowHeightRef: React.MutableRefObject<number>
+  onBeforeReorder?: (newData: TData[], activeId: string, overId: string | null) => TData[]
 }
 
 export function useDrag<TData>({
@@ -35,6 +36,7 @@ export function useDrag<TData>({
   getItemId,
   table,
   rowHeightRef,
+  onBeforeReorder,
 }: UseDragParams<TData>) {
   const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
   const [multiDragActive, setMultiDragActive] = React.useState(false)
@@ -109,6 +111,7 @@ export function useDrag<TData>({
         ...selectedItems,
         ...unselectedItems.slice(insertAt),
       ]
+      const finalData = onBeforeReorder ? onBeforeReorder(newData, String(active.id), over ? String(over.id) : null) : newData
       setJustDropped(true)
       if (justDroppedRafRef.current) cancelAnimationFrame(justDroppedRafRef.current)
       justDroppedRafRef.current = requestAnimationFrame(() => {
@@ -116,18 +119,19 @@ export function useDrag<TData>({
           setJustDropped(false)
         })
       })
-      updateActiveRowAfterReorder(newData)
-      setOrderedData(newData)
-      onRowReorder?.(newData)
+      updateActiveRowAfterReorder(finalData)
+      setOrderedData(finalData)
+      onRowReorder?.(finalData)
     } else {
       if (!over || active.id === over.id) return
       const oldIndex = orderedData.findIndex((item) => getItemId(item) === active.id)
       const newIndex = orderedData.findIndex((item) => getItemId(item) === over.id)
       if (oldIndex === -1 || newIndex === -1) return
       const newData = arrayMove(orderedData, oldIndex, newIndex)
-      updateActiveRowAfterReorder(newData)
-      setOrderedData(newData)
-      onRowReorder?.(newData)
+      const finalData = onBeforeReorder ? onBeforeReorder(newData, String(active.id), over ? String(over.id) : null) : newData
+      updateActiveRowAfterReorder(finalData)
+      setOrderedData(finalData)
+      onRowReorder?.(finalData)
     }
   }
 
