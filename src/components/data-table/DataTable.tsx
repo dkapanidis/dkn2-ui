@@ -47,7 +47,7 @@ import { useKeyboardHandler } from './useKeyboardHandler'
 export type { DataTableProps, RowAction }
 export type { ShortcutKeys } from './types'
 
-function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd, headerStyle }: {
+function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd, headerStyle, onMeasureHeight }: {
   label: string
   icon?: React.ReactNode
   count: number
@@ -55,9 +55,13 @@ function GroupHeader({ label, icon, count, collapsed, onToggle, onAdd, headerSty
   onToggle: () => void
   onAdd?: () => void
   headerStyle?: React.CSSProperties
+  onMeasureHeight?: (height: number) => void
 }) {
+  const measureRef = React.useCallback((node: HTMLDivElement | null) => {
+    if (node && onMeasureHeight) onMeasureHeight(node.offsetHeight)
+  }, [onMeasureHeight])
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none" style={headerStyle}>
+    <div ref={measureRef} className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none" style={headerStyle}>
       <button
         onClick={onToggle}
         className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -128,6 +132,7 @@ export function DataTable<TData, TValue>({
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
   const filterButtonRef = React.useRef<HTMLButtonElement>(null)
   const rowHeightRef = React.useRef<number>(33)
+  const headerHeightRef = React.useRef<number>(33)
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
@@ -400,14 +405,13 @@ export function DataTable<TData, TValue>({
   const {
     sensors,
     dragActiveId,
-    dragOverId,
     multiDragActive,
     justDropped,
     dragOccurredRef,
     customTransforms,
+    dragTargetGroupKey,
     handleDragStart,
     handleDragMove,
-    handleDragOver,
     handleDragEnd,
   } = useDrag({
     rows: visibleRows,
@@ -420,8 +424,10 @@ export function DataTable<TData, TValue>({
     getItemId: getRowId ?? getStableId,
     table,
     rowHeightRef,
+    headerHeightRef,
     onBeforeReorder,
-    grouped: !!groupedRows,
+    groupBy,
+    onGroupChange,
   })
 
   // Reactive: which group the dragged row originally belongs to
@@ -432,12 +438,9 @@ export function DataTable<TData, TValue>({
     return item ? groupBy(item) : null
   }, [dragActiveId, groupBy, orderedData, getRowId, getStableId])
 
-  // Live group key: the group the dragged row would land in at the current hover position
-  const dragLiveGroupKey = React.useMemo(() => {
-    if (!dragOverId || !groupBy) return dragSourceGroupKey
-    const overRow = visibleRows.find(r => r.id === dragOverId)
-    return overRow ? groupBy(overRow.original) : dragSourceGroupKey
-  }, [dragOverId, groupBy, visibleRows, dragSourceGroupKey])
+  // Live group key: the group the dragged row currently belongs to, from the
+  // header-aware geometric placement computed during the drag.
+  const dragLiveGroupKey = dragTargetGroupKey ?? dragSourceGroupKey
 
   // Compute translateY for a group header so it repositions live during cross-group drag
   const computeGroupHeaderStyle = React.useCallback((groupKey: string): React.CSSProperties | undefined => {
@@ -694,7 +697,6 @@ export function DataTable<TData, TValue>({
         modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div ref={tableContainerRef}>
@@ -706,7 +708,7 @@ export function DataTable<TData, TValue>({
                     No results found.
                   </div>
                 ) : groupedRows ? (
-                  Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
+                  Array.from(groupedRows.entries()).map(([groupKey, groupRows], groupIndex) => {
                     const isCollapsed = collapsedGroups.has(groupKey)
                     const config = groupConfigs?.[groupKey]
                     const liveCount = (() => {
@@ -718,6 +720,7 @@ export function DataTable<TData, TValue>({
                     return (
                       <React.Fragment key={groupKey}>
                         <GroupHeader
+                          onMeasureHeight={groupIndex === 0 ? (h) => { headerHeightRef.current = h } : undefined}
                           label={config?.label ?? groupKey}
                           icon={config?.icon}
                           count={liveCount}
@@ -847,7 +850,7 @@ export function DataTable<TData, TValue>({
                       </TableCell>
                     </TableRow>
                   ) : groupedRows ? (
-                    Array.from(groupedRows.entries()).map(([groupKey, groupRows]) => {
+                    Array.from(groupedRows.entries()).map(([groupKey, groupRows], groupIndex) => {
                       const isCollapsed = collapsedGroups.has(groupKey)
                       const config = groupConfigs?.[groupKey]
                       const liveCount = (() => {
@@ -861,6 +864,7 @@ export function DataTable<TData, TValue>({
                           <TableRow className="hover:bg-transparent" style={computeGroupHeaderStyle(groupKey)}>
                             <TableCell colSpan={allColumns.length} className="p-0">
                               <GroupHeader
+                                onMeasureHeight={groupIndex === 0 ? (h) => { headerHeightRef.current = h } : undefined}
                                 label={config?.label ?? groupKey}
                                 icon={config?.icon}
                                 count={liveCount}
