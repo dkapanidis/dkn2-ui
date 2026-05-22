@@ -160,8 +160,25 @@ export function useDrag<TData>({
       const nonDraggedDomIndices = rows.map((r, i) => !inDragSet(r) ? i : -1).filter(i => i !== -1)
       const groupSize = draggedDomIndices.length
       const insertAt_original = nonDraggedDomIndices.filter(i => i < activeDomIndex).length
+      // The dragged set tracks the pointer smoothly.
       const insertAt_float = insertAt_original + dragDeltaY / rowH
-      const insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonDraggedDomIndices.length))
+      // Where the displaced (non-dragged) rows settle. Multi-drag tracks the pointer
+      // directly. Single-row drag follows the dnd-kit `over` row instead: `over` flips
+      // at row midpoints and accounts for the header gap between groups, so displaced
+      // rows move in lockstep with the group header (computeGroupHeaderStyle is also
+      // `over`-driven). Pointer-based rounding would shift them half a row early —
+      // before the dragged row clears the header, sliding them behind it.
+      let insertAt: number
+      if (multiDragActive) {
+        insertAt = Math.max(0, Math.min(Math.round(insertAt_float), nonDraggedDomIndices.length))
+      } else {
+        insertAt = insertAt_original
+        const overDomIndex = dragOverId ? rows.findIndex(r => r.id === dragOverId) : -1
+        if (overDomIndex !== -1 && overDomIndex !== activeDomIndex) {
+          const overK = nonDraggedDomIndices.indexOf(overDomIndex)
+          if (overK !== -1) insertAt = overDomIndex > activeDomIndex ? overK + 1 : overK
+        }
+      }
       customTransforms = rows.map((row, domIndex) => {
         if (inDragSet(row)) {
           const groupIdx = draggedDomIndices.indexOf(domIndex)

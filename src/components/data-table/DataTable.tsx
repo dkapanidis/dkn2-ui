@@ -452,7 +452,11 @@ export function DataTable<TData, TValue>({
     if (sourceOrder === liveOrder) return undefined
     const delta = (sourceOrder < headerOrder ? -1 : 0) + (liveOrder < headerOrder ? 1 : 0)
     if (delta === 0) return undefined
-    return { transform: `translateY(${delta * rowHeightRef.current}px)`, position: 'relative' }
+    return {
+      transform: `translateY(${delta * rowHeightRef.current}px)`,
+      transition: 'transform 200ms ease',
+      position: 'relative',
+    }
   }, [dragActiveId, dragSourceGroupKey, dragLiveGroupKey, groupConfigs, multiDragActive])
 
   useKeyboardHandler({
