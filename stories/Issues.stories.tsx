@@ -126,6 +126,19 @@ const issueColumns: ColumnDef<Issue>[] = [
     size: 36,
   },
   {
+    id: 'project',
+    accessorKey: 'project',
+    header: 'Project',
+    cell: ({ row }) =>
+      row.original.project ? (
+        <div className="flex items-center gap-1">
+          <TargetIcon className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+          <span className="text-xs text-muted-foreground/60">{row.original.project}</span>
+        </div>
+      ) : null,
+    size: 72,
+  },
+  {
     id: 'createdAt',
     accessorKey: 'createdAt',
     header: 'Created',
@@ -162,8 +175,9 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
     options: [
       { value: 'medium', label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
       { value: 'high', label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
+      { value: '', label: 'No priority', icon: <ArrowDownIcon className="h-3.5 w-3.5 text-muted-foreground/40" /> },
     ],
-    filterFn: (row, values) => row.priority !== undefined && values.includes(row.priority),
+    filterFn: (row, values) => values.includes(row.priority ?? ''),
   },
   {
     id: 'label',
@@ -181,8 +195,9 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
     icon: <TargetIcon className="h-3.5 w-3.5" />,
     options: [
       { value: 'PI06', label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5 text-muted-foreground" /> },
+      { value: '', label: 'No project', icon: <FolderIcon className="h-3.5 w-3.5 text-muted-foreground/40" /> },
     ],
-    filterFn: (row, values) => row.project !== undefined && values.includes(row.project),
+    filterFn: (row, values) => values.includes(row.project ?? ''),
   },
 ]
 
@@ -245,13 +260,14 @@ const sortFieldLabels: Record<SortField, string> = {
   updatedAt: 'Updated',
 }
 
-const toggleableColumns = ['code', 'label', 'priority', 'createdAt', 'updatedAt'] as const
+const toggleableColumns = ['code', 'label', 'priority', 'project', 'createdAt', 'updatedAt'] as const
 type ToggleableColumn = typeof toggleableColumns[number]
 
 const columnLabels: Record<ToggleableColumn, string> = {
   code: 'ID',
   label: 'Label',
   priority: 'Priority',
+  project: 'Project',
   createdAt: 'Created',
   updatedAt: 'Updated',
 }
