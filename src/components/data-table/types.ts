@@ -41,6 +41,7 @@ export interface TableActiveFilter {
 export interface GroupConfig {
   label: string
   icon?: React.ReactNode
+  order?: number
 }
 
 export interface DataTableProps<TData, TValue> {

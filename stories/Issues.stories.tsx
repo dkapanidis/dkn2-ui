@@ -399,14 +399,14 @@ function ConfigureMenu({
 const defaultVisibleColumns = new Set<ToggleableColumn>(['code', 'label', 'priority', 'createdAt', 'updatedAt'])
 
 const projectGroupConfigs: Record<string, GroupConfig> = {
-  'PI06': { label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5" /> },
-  '': { label: 'No project' },
+  '': { label: 'No project', order: 0 },
+  'PI06': { label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5" />, order: 1 },
 }
 
 const priorityGroupConfigs: Record<string, GroupConfig> = {
-  'high': { label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
-  'medium': { label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
-  '': { label: 'No priority' },
+  '': { label: 'No priority', order: 0 },
+  'high': { label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" />, order: 1 },
+  'medium': { label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" />, order: 2 },
 }
 
 type Tab = 'all' | 'active' | 'backlog'

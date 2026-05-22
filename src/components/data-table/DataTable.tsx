@@ -282,8 +282,17 @@ export function DataTable<TData, TValue>({
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(row)
     }
+    if (groupConfigs) {
+      const entries = Array.from(groups.entries())
+      entries.sort(([a], [b]) => {
+        const orderA = groupConfigs[a]?.order ?? Infinity
+        const orderB = groupConfigs[b]?.order ?? Infinity
+        return orderA - orderB
+      })
+      return new Map(entries)
+    }
     return groups
-  }, [rows, groupBy])
+  }, [rows, groupBy, groupConfigs])
 
   // Keep a ref to visibleRows so the data-change effect can read the current value
   // without being re-triggered on every render (stale-closure pattern, like `rows` above).
@@ -307,6 +316,31 @@ export function DataTable<TData, TValue>({
     visibleRows.forEach((row, i) => map.set(row.id, i))
     return map
   }, [visibleRows])
+
+  // orderedData re-sorted to match the grouped visual order so that drag/keyboard
+  // index operations work in the same space as what the user sees on screen.
+  const visualOrderedData = React.useMemo(() => {
+    if (!groupedRows) return orderedData
+    const idFn = getRowId ?? getStableId
+    const idToItem = new Map(orderedData.map(item => [idFn(item), item]))
+    const seen = new Set<string>()
+    const result: TData[] = []
+    for (const [, groupRows] of groupedRows) {
+      for (const row of groupRows) {
+        const id = idFn(row.original)
+        const item = idToItem.get(id)
+        if (item && !seen.has(id)) { result.push(item); seen.add(id) }
+      }
+    }
+    for (const item of orderedData) {
+      const id = idFn(item)
+      if (!seen.has(id)) { result.push(item); seen.add(id) }
+    }
+    return result
+  }, [groupedRows, orderedData, getRowId, getStableId])
+
+  const visualOrderedDataRef = React.useRef(visualOrderedData)
+  visualOrderedDataRef.current = visualOrderedData
 
   // Rows that actions apply to: explicit selection, or the keyboard-navigated row as implicit target
   const effectiveRows: TData[] =
@@ -370,7 +404,7 @@ export function DataTable<TData, TValue>({
   } = useDrag({
     rows: visibleRows,
     selectedCount,
-    orderedData,
+    orderedData: visualOrderedData,
     setOrderedData,
     onRowReorder,
     activeRowIndex,
@@ -449,8 +483,9 @@ export function DataTable<TData, TValue>({
           : Math.max(0, Math.min(nonSelectedVisibleIndices.length, insertAt_original + direction))
         if (insertAt === insertAt_original) return
         const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
-        const selectedItems = orderedData.filter(item => selectedIdSet.has(idFn(item)))
-        const unselectedItems = orderedData.filter(item => !selectedIdSet.has(idFn(item)))
+        const vod = visualOrderedDataRef.current
+        const selectedItems = vod.filter(item => selectedIdSet.has(idFn(item)))
+        const unselectedItems = vod.filter(item => !selectedIdSet.has(idFn(item)))
         let next: TData[] = [
           ...unselectedItems.slice(0, insertAt),
           ...selectedItems,
@@ -482,10 +517,11 @@ export function DataTable<TData, TValue>({
         : Math.max(0, Math.min(currentVisibleRows.length - 1, activeRowIndex + direction))
       if (targetDisplayIndex === activeRowIndex) return
       const targetRow = currentVisibleRows[targetDisplayIndex]
-      const fromIdx = orderedData.findIndex(item => idFn(item) === idFn(activeRow.original))
-      const toIdx = orderedData.findIndex(item => idFn(item) === idFn(targetRow.original))
+      const vod = visualOrderedDataRef.current
+      const fromIdx = vod.findIndex(item => idFn(item) === idFn(activeRow.original))
+      const toIdx = vod.findIndex(item => idFn(item) === idFn(targetRow.original))
       if (fromIdx === -1 || toIdx === -1) return
-      let next = arrayMove(orderedData, fromIdx, toIdx)
+      let next = arrayMove(vod, fromIdx, toIdx)
       if (groupBy && onGroupChange) {
         const movedIdx = next.findIndex(item => idFn(item) === idFn(activeRow.original))
         const prev = movedIdx > 0 ? next[movedIdx - 1] : null
@@ -502,7 +538,7 @@ export function DataTable<TData, TValue>({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onRowReorder, activeRowIndex, orderedData, getRowId, getStableId, groupBy, onGroupChange])
+  }, [onRowReorder, activeRowIndex, getRowId, getStableId, groupBy, onGroupChange])
 
   React.useEffect(() => {
     if (activeRowIndex === null) return
