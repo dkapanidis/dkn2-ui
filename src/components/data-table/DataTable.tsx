@@ -9,6 +9,7 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
   type SortingState,
+  type Updater,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -16,7 +17,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { ArrowUpDownIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react'
 import * as React from 'react'
 import { Input } from '@/components/ui/input'
 import {
@@ -62,10 +63,19 @@ export function DataTable<TData, TValue>({
   onToggleFilterValue: controlledToggleFilterValue,
   onRemoveFilter: controlledRemoveFilter,
   onClearFilters: controlledClearFilters,
+  sorting: controlledSorting,
+  onSortingChange: onControlledSortingChange,
 }: DataTableProps<TData, TValue>) {
   const isControlled = controlledActiveFilters !== undefined
   const showAll = pageSize === 'all'
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
+  const isControlledSorting = controlledSorting !== undefined
+  const sorting = isControlledSorting ? controlledSorting : internalSorting
+  const setSorting = React.useCallback((updater: Updater<SortingState>) => {
+    const next = typeof updater === 'function' ? updater(sorting) : updater
+    if (isControlledSorting) onControlledSortingChange?.(next)
+    else setInternalSorting(next)
+  }, [isControlledSorting, sorting, onControlledSortingChange])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [internalActiveFilters, setInternalActiveFilters] = React.useState<TableActiveFilter[]>([])
   const activeFilters = isControlled ? controlledActiveFilters : internalActiveFilters
@@ -478,13 +488,16 @@ export function DataTable<TData, TValue>({
                         key={header.id}
                         style={header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                         className={cn(
-                          'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8',
+                          'text-xs font-medium text-muted-foreground uppercase tracking-wide h-8 group/th',
                           header.id === '_select' && 'w-6 !pl-2 !pr-0',
                           header.column.getCanSort() && 'cursor-pointer select-none'
                         )}
                         onClick={
                           header.column.getCanSort()
-                            ? header.column.getToggleSortingHandler()
+                            ? () => {
+                                const sorted = header.column.getIsSorted()
+                                header.column.toggleSorting(sorted === 'asc')
+                              }
                             : undefined
                         }
                       >
@@ -493,16 +506,12 @@ export function DataTable<TData, TValue>({
                         ) : (
                           <div className="flex items-center gap-1">
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.getCanSort() && (
-                              <ArrowUpDownIcon
-                                className={cn(
-                                  'h-3 w-3 transition-opacity',
-                                  header.column.getIsSorted()
-                                    ? 'opacity-100 text-foreground'
-                                    : 'opacity-30'
-                                )}
-                              />
-                            )}
+                            {header.column.getCanSort() && (() => {
+                              const sorted = header.column.getIsSorted()
+                              if (sorted === 'asc') return <ArrowUpIcon className="h-3 w-3 text-foreground" />
+                              if (sorted === 'desc') return <ArrowDownIcon className="h-3 w-3 text-foreground" />
+                              return <ArrowUpIcon className="h-3 w-3 opacity-0 group-hover/th:opacity-40 transition-opacity" />
+                            })()}
                           </div>
                         )}
                       </TableHead>

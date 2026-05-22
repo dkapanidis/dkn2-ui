@@ -21,6 +21,7 @@ import {
   RepeatIcon,
   SearchIcon,
   Settings2Icon,
+  ListIcon,
   SlidersHorizontalIcon,
   StarIcon,
   TableIcon,
@@ -31,6 +32,7 @@ import * as React from 'react'
 import { DataTable, FilterBar, FilterButton, FilterMenu, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../src/components/ui/select'
 import { Toaster } from '../src/components/ui/sonner'
 import { cn } from '../src/lib/utils'
 
@@ -285,16 +287,20 @@ function ConfigureMenu({
                     ? <ArrowUpIcon className="h-3.5 w-3.5" />
                     : <ArrowDownIcon className="h-3.5 w-3.5" />}
                 </button>
-                <select
-                  value={sortField ?? ''}
-                  onChange={e => onSortFieldChange((e.target.value as SortField) || null)}
-                  className="text-sm bg-accent rounded px-2 py-1 border border-border outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                <Select
+                  value={sortField ?? 'manual'}
+                  onValueChange={v => onSortFieldChange(v === 'manual' ? null : (v as SortField))}
                 >
-                  <option value="">No ordering</option>
-                  {(Object.keys(sortFieldLabels) as SortField[]).map(f => (
-                    <option key={f} value={f}>{sortFieldLabels[f]}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-7 text-sm w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    {(Object.keys(sortFieldLabels) as SortField[]).map(f => (
+                      <SelectItem key={f} value={f}>{sortFieldLabels[f]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -338,21 +344,6 @@ function ConfigureMenu({
   )
 }
 
-const priorityOrder: Record<string, number> = { high: 0, medium: 1 }
-const statusOrder: Record<string, number> = { 'in-progress': 0, todo: 1, backlog: 2, done: 3, cancelled: 4 }
-
-function sortIssues(data: Issue[], field: SortField | null, order: SortOrder): Issue[] {
-  if (!field) return data
-  return [...data].sort((a, b) => {
-    let cmp = 0
-    if (field === 'title') cmp = a.title.localeCompare(b.title)
-    else if (field === 'status') cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99)
-    else if (field === 'priority') cmp = (priorityOrder[a.priority ?? ''] ?? 99) - (priorityOrder[b.priority ?? ''] ?? 99)
-    else if (field === 'createdAt') cmp = a.createdAt.localeCompare(b.createdAt)
-    else if (field === 'updatedAt') cmp = a.updatedAt.localeCompare(b.updatedAt)
-    return order === 'asc' ? cmp : -cmp
-  })
-}
 
 const defaultVisibleColumns = new Set<ToggleableColumn>(['code', 'label', 'priority', 'createdAt', 'updatedAt'])
 
@@ -369,6 +360,7 @@ function IssuesPage() {
   const [sortField, setSortField] = React.useState<SortField | null>(null)
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc')
   const [visibleColumns, setVisibleColumns] = React.useState<Set<ToggleableColumn>>(new Set(defaultVisibleColumns))
+  const [view, setView] = React.useState<'list' | 'table'>('list')
 
   const handleToggleColumn = (col: ToggleableColumn) => {
     setVisibleColumns(prev => {
@@ -393,7 +385,19 @@ function IssuesPage() {
     [visibleColumns]
   )
 
-  const sortedData = React.useMemo(() => sortIssues(data, sortField, sortOrder), [data, sortField, sortOrder])
+  const tableSorting = React.useMemo(
+    () => sortField ? [{ id: sortField, desc: sortOrder === 'desc' }] : [],
+    [sortField, sortOrder]
+  )
+
+  const handleSortingChange = (newSorting: { id: string; desc: boolean }[]) => {
+    if (newSorting.length === 0) {
+      setSortField(null)
+    } else {
+      setSortField(newSorting[0].id as SortField)
+      setSortOrder(newSorting[0].desc ? 'desc' : 'asc')
+    }
+  }
 
   const handleToggleFilterValue = (filterId: string, value: string) => {
     setActiveFilters(prev => {
@@ -509,8 +513,12 @@ function IssuesPage() {
               onToggleColumn={handleToggleColumn}
               onReset={handleResetConfigure}
             />
-            <button className="p-1.5 hover:text-foreground rounded">
-              <TableIcon className="h-4 w-4" />
+            <button
+              onClick={() => setView(v => v === 'list' ? 'table' : 'list')}
+              className={cn('p-1.5 rounded', view === 'table' ? 'text-foreground' : 'hover:text-foreground')}
+              title={view === 'list' ? 'Switch to table view' : 'Switch to list view'}
+            >
+              {view === 'list' ? <TableIcon className="h-4 w-4" /> : <ListIcon className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -541,7 +549,7 @@ function IssuesPage() {
             </button>
             <span className="text-sm font-medium">No project</span>
             <span className="text-yellow-500 text-xs">⚠</span>
-            <span className="text-xs text-muted-foreground">{sortedData.length}</span>
+            <span className="text-xs text-muted-foreground">{data.length}</span>
             <button className="ml-auto p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
               <PlusIcon className="h-4 w-4" />
             </button>
@@ -550,8 +558,8 @@ function IssuesPage() {
           {groupOpen && (
             <DataTable
               columns={filteredColumns}
-              data={sortedData}
-              view="list"
+              data={data}
+              view={view}
               pageSize="all"
               getRowId={(row) => row.id}
               onRowReorder={sortField ? undefined : setData}
@@ -560,6 +568,8 @@ function IssuesPage() {
               onToggleFilterValue={handleToggleFilterValue}
               onRemoveFilter={handleRemoveFilter}
               onClearFilters={handleClearFilters}
+              sorting={tableSorting}
+              onSortingChange={handleSortingChange}
             />
           )}
 

@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import type * as React from 'react'
 
 export interface ShortcutKeys {
@@ -55,4 +55,7 @@ export interface DataTableProps<TData, TValue> {
   onToggleFilterValue?: (filterId: string, value: string) => void
   onRemoveFilter?: (filterId: string) => void
   onClearFilters?: () => void
+  /** Controlled sorting state. When provided, header clicks update via onSortingChange. */
+  sorting?: SortingState
+  onSortingChange?: (sorting: SortingState) => void
 }
