@@ -14,6 +14,7 @@ export function ListRow<TData>({
   customTranslateY,
   isDragGroup,
   justDropped,
+  suppressTransform,
   onMeasureHeight,
   onRowClick,
   onRowMouseEnter,
@@ -35,7 +36,7 @@ export function ListRow<TData>({
   const style: React.CSSProperties =
     customTranslateY !== null
       ? { transform: `translateY(${customTranslateY}px)`, transition: 'none' }
-      : justDropped
+      : justDropped || suppressTransform
         ? { transform: 'none', transition: 'none' }
         : { transform: CSS.Transform.toString(transform), transition }
 

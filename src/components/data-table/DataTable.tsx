@@ -338,6 +338,9 @@ export function DataTable<TData, TValue>({
     return newData.map(item => item === activeItem ? updatedItem : item)
   }, [groupBy, onGroupChange, getRowId, getStableId])
 
+  // Which group the currently-dragged row belongs to (null when no drag or no grouping)
+  const dragSourceGroupRef = React.useRef<string | null>(null)
+
   const {
     sensors,
     dragActiveId,
@@ -361,6 +364,14 @@ export function DataTable<TData, TValue>({
     rowHeightRef,
     onBeforeReorder,
   })
+
+  // Track which group the dragged row belongs to so we can suppress cross-group transforms
+  React.useEffect(() => {
+    if (!dragActiveId || !groupBy) { dragSourceGroupRef.current = null; return }
+    const idFn = getRowId ?? getStableId
+    const item = orderedData.find(item => idFn(item) === dragActiveId)
+    dragSourceGroupRef.current = item ? groupBy(item) : null
+  }, [dragActiveId, groupBy, orderedData, getRowId, getStableId])
 
   useKeyboardHandler({
     rowActions,
@@ -570,6 +581,10 @@ export function DataTable<TData, TValue>({
                               customTranslateY={customTransforms ? customTransforms[displayIndex] : null}
                               isDragGroup={multiDragActive && row.getIsSelected()}
                               justDropped={justDropped}
+                              suppressTransform={
+                                !!dragActiveId && row.id !== dragActiveId &&
+                                !!groupBy && groupBy(row.original) !== dragSourceGroupRef.current
+                              }
                               onMeasureHeight={displayIndex === 0 ? (h) => { rowHeightRef.current = h } : undefined}
                               onRowClick={(i) => {
                                 if (dragOccurredRef.current) return
