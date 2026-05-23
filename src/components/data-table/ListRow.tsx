@@ -13,8 +13,8 @@ export function rowStateClasses(
   activeRowSource: 'keyboard' | 'mouse',
 ) {
   return cn(
-    isSelected && 'bg-primary/10',
-    isActive && isSelected && 'bg-primary/15',
+    isSelected && 'bg-selected/10',
+    isActive && isSelected && 'bg-selected/15',
     isActive && !isSelected && 'bg-muted/50',
     isActive && activeRowSource === 'keyboard' && 'row-ring',
   )

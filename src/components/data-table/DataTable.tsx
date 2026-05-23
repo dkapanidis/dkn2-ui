@@ -948,7 +948,7 @@ export function DataTable<TData, TValue>({
               {overlayRows.map((r) => (
                 <div
                   key={r.id}
-                  className={cn(listRowClassName, r.getIsSelected() ? 'bg-primary/10' : 'bg-background')}
+                  className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
                 >
                   <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
                 </div>
