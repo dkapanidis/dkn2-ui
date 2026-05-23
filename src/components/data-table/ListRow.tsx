@@ -15,8 +15,7 @@ export function rowStateClasses(
   return cn(
     isSelected && 'bg-primary/10',
     isActive && isSelected && 'bg-primary/15',
-    isActive && !isSelected && activeRowSource === 'mouse' && 'bg-muted/30',
-    isActive && !isSelected && activeRowSource === 'keyboard' && 'bg-primary/10',
+    isActive && !isSelected && 'bg-muted/50',
     isActive && activeRowSource === 'keyboard' && 'row-ring',
   )
 }
