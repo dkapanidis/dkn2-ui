@@ -432,6 +432,13 @@ export function DataTable<TData, TValue>({
     _handleDragStart(event)
   }, [lockMove, sorting, onSwitchToManual, _handleDragStart, syncOrderedDataToSortedRows])
 
+  // Keep activeRowIndex on the dragged row as it moves through the live-reordered list
+  React.useEffect(() => {
+    if (!dragActiveId) return
+    const newIndex = visibleRows.findIndex(r => r.id === dragActiveId)
+    if (newIndex !== -1) setActiveRowIndex(newIndex)
+  }, [dragActiveId, visibleRows])
+
   // The rows rendered in the floating DragOverlay that follows the cursor.
   // For a multi-row drag every dragged row is shown stacked in visible order.
   const overlayRows = React.useMemo(() => {
@@ -959,7 +966,10 @@ export function DataTable<TData, TValue>({
                     {overlayRows.map((r) => (
                       <TableRow
                         key={r.id}
-                        className={cn('h-6 select-none outline-none', r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+                        className={cn('h-6 select-none outline-none', overlayRows.length === 1
+                          ? (r.getIsSelected() ? 'bg-selected/15' : 'bg-muted/50')
+                          : (r.getIsSelected() ? 'bg-selected/10' : 'bg-background')
+                        )}
                       >
                         <SortableRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
                       </TableRow>
@@ -970,7 +980,10 @@ export function DataTable<TData, TValue>({
                 overlayRows.map((r) => (
                   <div
                     key={r.id}
-                    className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+                    className={cn(listRowClassName, overlayRows.length === 1
+                      ? (r.getIsSelected() ? 'bg-selected/15' : 'bg-muted/50')
+                      : (r.getIsSelected() ? 'bg-selected/10' : 'bg-background')
+                    )}
                   >
                     <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
                   </div>
