@@ -51,9 +51,11 @@ export function useDrag<TData>({
 }: UseDragParams<TData>) {
   const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
   const [draggingIds, setDraggingIds] = React.useState<Set<string>>(() => new Set())
+  const [dragCrossesGroup, setDragCrossesGroup] = React.useState(false)
   const dragOccurredRef = React.useRef(false)
   // Snapshot of the order at drag start, restored if the drag is cancelled.
   const preDragOrderRef = React.useRef<TData[]>([])
+  const preDragGroupRef = React.useRef<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -76,6 +78,8 @@ export function useDrag<TData>({
     setDraggingIds(multi
       ? new Set(table.getSelectedRowModel().rows.map((r) => r.id))
       : new Set([id]))
+    preDragGroupRef.current = groupBy && draggedRow ? groupBy(draggedRow.original) : null
+    setDragCrossesGroup(false)
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -132,11 +136,17 @@ export function useDrag<TData>({
     if (orderSignature(newOrder) !== orderSignature(order)) {
       setOrderedData(newOrder)
     }
+
+    if (preDragGroupRef.current !== null && newGroupKey !== null) {
+      setDragCrossesGroup(newGroupKey !== preDragGroupRef.current)
+    }
   }
 
   const endDrag = () => {
     setDragActiveId(null)
     setDraggingIds(new Set())
+    setDragCrossesGroup(false)
+    preDragGroupRef.current = null
     setTimeout(() => { dragOccurredRef.current = false }, 0)
   }
 
@@ -157,6 +167,7 @@ export function useDrag<TData>({
     sensors,
     dragActiveId,
     draggingIds,
+    dragCrossesGroup,
     dragOccurredRef,
     handleDragStart,
     handleDragOver,

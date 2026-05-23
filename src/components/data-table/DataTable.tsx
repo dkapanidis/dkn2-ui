@@ -389,6 +389,7 @@ export function DataTable<TData, TValue>({
     sensors,
     dragActiveId,
     draggingIds,
+    dragCrossesGroup,
     dragOccurredRef,
     handleDragStart: _handleDragStart,
     handleDragOver,
@@ -988,6 +989,8 @@ export function DataTable<TData, TValue>({
         rowActions={rowActions}
         onClearSelection={() => table.resetRowSelection()}
         onOpenActions={() => setActionsOpen(true)}
+        isDraggingMulti={!!dragActiveId && draggingIds.size > 1}
+        dragCrossesGroup={dragCrossesGroup}
       />
 
       {rowActions?.length ? (

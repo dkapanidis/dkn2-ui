@@ -9,6 +9,8 @@ interface SelectionBarProps<TData> {
   rowActions?: RowAction<TData>[]
   onClearSelection: () => void
   onOpenActions: () => void
+  isDraggingMulti?: boolean
+  dragCrossesGroup?: boolean
 }
 
 export function SelectionBar<TData>({
@@ -16,7 +18,19 @@ export function SelectionBar<TData>({
   rowActions,
   onClearSelection,
   onOpenActions,
+  isDraggingMulti = false,
+  dragCrossesGroup = false,
 }: SelectionBarProps<TData>) {
+  if (isDraggingMulti) {
+    if (!dragCrossesGroup) return null
+    return createPortal(
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover text-popover-foreground px-4 py-1.5 shadow-lg">
+        <span className="text-sm font-medium">Drop to move to this group</span>
+      </div>,
+      document.body
+    )
+  }
+
   if (selectedCount === 0) return null
   return createPortal(
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 rounded-full border border-border bg-popover text-popover-foreground px-2 py-1.5 shadow-lg">
