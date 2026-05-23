@@ -506,19 +506,25 @@ export function DataTable<TData, TValue>({
 
         const activeVodIdx = vod.findIndex(item => idFn(item) === activeId)
 
-        // Cross-group: if the active row steps over an item in a different group,
-        // change the group for all selected items without repositioning.
-        if (groupBy && onGroupChange && activeVodIdx !== -1) {
-          const stepOverVodIdx = activeVodIdx + direction
-          if (stepOverVodIdx >= 0 && stepOverVodIdx < vod.length && !selectedIdSet.has(idFn(vod[stepOverVodIdx]))) {
-            const activeGroupKey = groupBy(activeRow.original)
-            const stepOverGroupKey = groupBy(vod[stepOverVodIdx])
-            if (activeGroupKey !== stepOverGroupKey) {
-              const next = vod.map(item => selectedIdSet.has(idFn(item)) ? onGroupChange(item, stepOverGroupKey) : item)
-              setOrderedData(next)
-              onRowReorder(next)
-              setActiveRowIndex(activeRowIndex)
-              return
+        // Cross-group: check the leading edge of the whole selection in the movement
+        // direction (not just the active row) so multi-row selections trigger when
+        // any edge item hits a group boundary.
+        if (groupBy && onGroupChange) {
+          const selectedVodIndices = Array.from(selectedIdSet)
+            .map(id => vod.findIndex(item => idFn(item) === id))
+            .filter(i => i !== -1)
+          if (selectedVodIndices.length > 0) {
+            const edgeVodIdx = (direction === -1 ? Math.min(...selectedVodIndices) : Math.max(...selectedVodIndices)) + direction
+            if (edgeVodIdx >= 0 && edgeVodIdx < vod.length && !selectedIdSet.has(idFn(vod[edgeVodIdx]))) {
+              const activeGroupKey = groupBy(activeRow.original)
+              const stepOverGroupKey = groupBy(vod[edgeVodIdx])
+              if (activeGroupKey !== stepOverGroupKey) {
+                const next = vod.map(item => selectedIdSet.has(idFn(item)) ? reorderGroupChange(item, stepOverGroupKey) : item)
+                setOrderedData(next)
+                onRowReorder(next)
+                setActiveRowIndex(activeRowIndex)
+                return
+              }
             }
           }
         }
