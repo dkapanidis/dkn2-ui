@@ -40,7 +40,7 @@ import { FilterMenu } from './FilterMenu'
 import { ListRow, ListRowCells, listRowClassName } from './ListRow'
 import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
-import { SortableRow, SortableRowCells } from './SortableRow'
+import { SortableRow } from './SortableRow'
 import type { TableActiveFilter, DataTableProps, RowAction } from './types'
 import { ActionsDialog } from './ActionsDialog'
 import { TableFooter } from './TableFooter'
@@ -908,38 +908,19 @@ export function DataTable<TData, TValue>({
         </div>
         <DragOverlay dropAnimation={null}>
           {overlayRows.length > 0 ? (
-            view === 'list' ? (
-              <div
-                className="cursor-grabbing rounded-sm shadow-lg overflow-hidden"
-                style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
-              >
-                {overlayRows.map((r) => (
-                  <div
-                    key={r.id}
-                    className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
-                  >
-                    <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Table
-                className="border-separate border-spacing-0 bg-background shadow-lg cursor-grabbing"
-                style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
-              >
-                <TableBody>
-                  {overlayRows.map((r) => (
-                    <TableRow
-                      key={r.id}
-                      className="h-6 data-[state=selected]:bg-selected/10"
-                      data-state={r.getIsSelected() ? 'selected' : undefined}
-                    >
-                      <SortableRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )
+            <div
+              className="cursor-grabbing rounded-sm shadow-lg overflow-hidden"
+              style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
+            >
+              {overlayRows.map((r) => (
+                <div
+                  key={r.id}
+                  className={cn(listRowClassName, r.getIsSelected() ? 'bg-primary/10' : 'bg-background')}
+                >
+                  <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                </div>
+              ))}
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
