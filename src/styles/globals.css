@@ -39,7 +39,7 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --selected: oklch(0.488 0.243 264.376);
+  --selected: oklch(0.65 0.22 50);
   --selected-foreground: oklch(0.985 0 0);
   --selected-border: color-mix(in oklch, var(--selected) 70%, transparent);
   --secondary: oklch(0.97 0 0);
@@ -71,7 +71,7 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --selected: oklch(0.6 0.22 264);
+  --selected: oklch(0.65 0.22 50);
   --selected-foreground: oklch(0.985 0 0);
   --selected-border: color-mix(in oklch, var(--selected) 70%, transparent);
   --secondary: oklch(0.269 0 0);
@@ -86,12 +86,12 @@
   --ring: oklch(0.556 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.65 0.22 50);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.439 0.268 264.531);
+  --sidebar-ring: oklch(0.55 0.22 50);
 }
 
 /* animate-in / animate-out utilities (tailwindcss-animate compatible, Tailwind v4) */
