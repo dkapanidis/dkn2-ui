@@ -486,7 +486,7 @@ export function DataTable<TData, TValue>({
       const currentVisibleRows = visibleRowsRef.current
       const activeRow = currentVisibleRows[activeRowIndex]
       if (!activeRow) return
-      const isMulti = activeRow.getIsSelected() && selectedCount > 1
+      const isMulti = activeRow.getIsSelected() && table.getSelectedRowModel().rows.length > 1
       if (isMulti) {
         const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
         const vod = visualOrderedDataRef.current
