@@ -55,7 +55,9 @@ export function useDrag<TData>({
   const dragOccurredRef = React.useRef(false)
   // Snapshot of the order at drag start, restored if the drag is cancelled.
   const preDragOrderRef = React.useRef<TData[]>([])
-  const preDragGroupRef = React.useRef<string | null>(null)
+  // Maps each dragged item's id to its group at drag start, so we can detect
+  // group changes even when selected rows span multiple groups.
+  const preDragGroupsRef = React.useRef<Map<string, string>>(new Map())
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -75,10 +77,20 @@ export function useDrag<TData>({
     preDragOrderRef.current = orderedData
     const draggedRow = rows.find((r) => r.id === id)
     const multi = (draggedRow?.getIsSelected() ?? false) && selectedCount > 1
-    setDraggingIds(multi
+    const draggingIdSet = multi
       ? new Set(table.getSelectedRowModel().rows.map((r) => r.id))
-      : new Set([id]))
-    preDragGroupRef.current = groupBy && draggedRow ? groupBy(draggedRow.original) : null
+      : new Set([id])
+    setDraggingIds(draggingIdSet)
+
+    if (groupBy) {
+      const preDragGroups = new Map<string, string>()
+      for (const row of rows) {
+        if (draggingIdSet.has(row.id)) preDragGroups.set(row.id, groupBy(row.original))
+      }
+      preDragGroupsRef.current = preDragGroups
+    } else {
+      preDragGroupsRef.current = new Map()
+    }
     setDragCrossesGroup(false)
   }
 
@@ -137,8 +149,9 @@ export function useDrag<TData>({
       setOrderedData(newOrder)
     }
 
-    if (preDragGroupRef.current !== null && newGroupKey !== null) {
-      setDragCrossesGroup(newGroupKey !== preDragGroupRef.current)
+    if (newGroupKey !== null && preDragGroupsRef.current.size > 0) {
+      const crosses = Array.from(preDragGroupsRef.current.values()).some(orig => orig !== newGroupKey)
+      setDragCrossesGroup(crosses)
     }
   }
 
@@ -146,7 +159,7 @@ export function useDrag<TData>({
     setDragActiveId(null)
     setDraggingIds(new Set())
     setDragCrossesGroup(false)
-    preDragGroupRef.current = null
+    preDragGroupsRef.current = new Map()
     setTimeout(() => { dragOccurredRef.current = false }, 0)
   }
 
