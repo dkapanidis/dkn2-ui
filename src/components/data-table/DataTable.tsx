@@ -40,7 +40,7 @@ import { FilterMenu } from './FilterMenu'
 import { ListRow, ListRowCells, listRowClassName } from './ListRow'
 import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
-import { SortableRow } from './SortableRow'
+import { SortableRow, SortableRowCells } from './SortableRow'
 import type { TableActiveFilter, DataTableProps, RowAction } from './types'
 import { ActionsDialog } from './ActionsDialog'
 import { TableFooter } from './TableFooter'
@@ -945,14 +945,37 @@ export function DataTable<TData, TValue>({
               className="cursor-grabbing rounded-sm shadow-lg overflow-hidden"
               style={overlayOffset ? { transform: `translateY(-${overlayOffset}px)` } : undefined}
             >
-              {overlayRows.map((r) => (
-                <div
-                  key={r.id}
-                  className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+              {view === 'table' ? (
+                <table
+                  className="border-separate border-spacing-0"
+                  style={{ width: tableContainerRef.current?.offsetWidth }}
                 >
-                  <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
-                </div>
-              ))}
+                  <colgroup>
+                    {table.getVisibleLeafColumns().map(col => (
+                      <col key={col.id} style={col.columnDef.size ? { width: col.columnDef.size } : undefined} />
+                    ))}
+                  </colgroup>
+                  <tbody>
+                    {overlayRows.map((r) => (
+                      <TableRow
+                        key={r.id}
+                        className={cn('h-6 select-none outline-none', r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+                      >
+                        <SortableRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                overlayRows.map((r) => (
+                  <div
+                    key={r.id}
+                    className={cn(listRowClassName, r.getIsSelected() ? 'bg-selected/10' : 'bg-background')}
+                  >
+                    <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                  </div>
+                ))
+              )}
             </div>
           ) : null}
         </DragOverlay>
