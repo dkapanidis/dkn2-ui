@@ -279,6 +279,8 @@ export function DataTable<TData, TValue>({
   })
 
   const rows = table.getRowModel().rows
+  const rowsRef = React.useRef<typeof rows>([])
+  rowsRef.current = rows
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
   const selectedCount = selectedRows.length
 
@@ -406,10 +408,28 @@ export function DataTable<TData, TValue>({
     dragEnabled,
   })
 
+  // Sync orderedData to the current sorted visual order so that switching from a
+  // sorted view to manual order starts from what the user already sees on screen.
+  const syncOrderedDataToSortedRows = React.useCallback(() => {
+    const idFn = getRowId ?? getStableId
+    const allRows = rowsRef.current
+    const currentData = visualOrderedDataRef.current
+    const idToItem = new Map(currentData.map(item => [idFn(item), item]))
+    const inRows = new Set(allRows.map(r => r.id))
+    const next: TData[] = [
+      ...allRows.map(r => idToItem.get(r.id)).filter((x): x is TData => x !== undefined),
+      ...currentData.filter(item => !inRows.has(idFn(item))),
+    ]
+    setOrderedData(next)
+  }, [getRowId, getStableId])
+
   const handleDragStart = React.useCallback((event: Parameters<typeof _handleDragStart>[0]) => {
-    if (!lockMove && sorting.length > 0) onSwitchToManual?.()
+    if (!lockMove && sorting.length > 0) {
+      syncOrderedDataToSortedRows()
+      onSwitchToManual?.()
+    }
     _handleDragStart(event)
-  }, [lockMove, sorting, onSwitchToManual, _handleDragStart])
+  }, [lockMove, sorting, onSwitchToManual, _handleDragStart, syncOrderedDataToSortedRows])
 
   // The rows rendered in the floating DragOverlay that follows the cursor.
   // For a multi-row drag every dragged row is shown stacked in visible order.
@@ -478,7 +498,19 @@ export function DataTable<TData, TValue>({
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (activeRowIndex === null) return
       if (lockMove && sorting.length > 0) return
-      if (!lockMove && sorting.length > 0) onSwitchToManual?.()
+      if (!lockMove && sorting.length > 0) {
+        const idFn = getRowId ?? getStableId
+        const allRows = rowsRef.current
+        const currentData = visualOrderedDataRef.current
+        const idToItem = new Map(currentData.map(item => [idFn(item), item]))
+        const inRows = new Set(allRows.map(r => r.id))
+        const synced: TData[] = [
+          ...allRows.map(r => idToItem.get(r.id)).filter((x): x is TData => x !== undefined),
+          ...currentData.filter(item => !inRows.has(idFn(item))),
+        ]
+        setOrderedData(synced)
+        onSwitchToManual?.()
+      }
       e.preventDefault()
       suppressMouseRef.current = true
       const direction = e.key === 'ArrowUp' ? -1 : 1
