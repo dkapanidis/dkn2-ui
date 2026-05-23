@@ -413,6 +413,8 @@ export const WithRowReorderLocked: Story = {
     const isSorted = sorting.length > 0
 
     return (
+      <>
+      <Toaster richColors />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {isSorted ? (
@@ -437,6 +439,7 @@ export const WithRowReorderLocked: Story = {
           pageSize="all"
         />
       </div>
+      </>
     )
   },
 }

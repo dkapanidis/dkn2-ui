@@ -22,6 +22,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, PlusIcon } from 'lucide-react'
 import * as React from 'react'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -505,7 +506,13 @@ export function DataTable<TData, TValue>({
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (activeRowIndex === null) return
-      if (lockMove && sorting.length > 0) return
+      if (lockMove && sorting.length > 0) {
+        const label = e.key === 'ArrowUp'
+          ? (e.shiftKey ? 'Move to top' : 'Move up')
+          : (e.shiftKey ? 'Move to bottom' : 'Move down')
+        toast.info(`${label} is disabled: The list is not ordered manually.`)
+        return
+      }
       if (!lockMove && sorting.length > 0) {
         const idFn = getRowId ?? getStableId
         const allRows = rowsRef.current
