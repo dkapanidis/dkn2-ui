@@ -608,7 +608,8 @@ function IssuesPage() {
             view={view}
             pageSize="all"
             getRowId={(row) => row.id}
-            onRowReorder={sortField === null ? setData : undefined}
+            onRowReorder={setData}
+            onSwitchToManual={() => setSortField(null)}
             filterDefs={issueFilterDefs}
             activeFilters={activeFilters}
             onToggleFilterValue={handleToggleFilterValue}

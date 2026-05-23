@@ -27,6 +27,7 @@ interface UseDragParams<TData> {
   groupBy?: (row: TData) => string
   onGroupChange?: (row: TData, newGroupKey: string) => TData
   groupConfigs?: Record<string, GroupConfig>
+  dragEnabled?: boolean
 }
 
 /**
@@ -46,6 +47,7 @@ export function useDrag<TData>({
   groupBy,
   onGroupChange,
   groupConfigs,
+  dragEnabled = true,
 }: UseDragParams<TData>) {
   const [dragActiveId, setDragActiveId] = React.useState<string | null>(null)
   const [draggingIds, setDraggingIds] = React.useState<Set<string>>(() => new Set())
@@ -64,6 +66,7 @@ export function useDrag<TData>({
   [getItemId, groupBy])
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (!dragEnabled) return
     dragOccurredRef.current = true
     const id = String(event.active.id)
     setDragActiveId(id)
@@ -76,6 +79,7 @@ export function useDrag<TData>({
   }
 
   const handleDragOver = (event: DragOverEvent) => {
+    if (!dragEnabled) return
     const { over } = event
     if (!over) return
     const overId = String(over.id)

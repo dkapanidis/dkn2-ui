@@ -108,6 +108,8 @@ export function DataTable<TData, TValue>({
   groupBy,
   groupConfigs,
   onGroupChange,
+  lockMove = false,
+  onSwitchToManual,
 }: DataTableProps<TData, TValue>) {
   const isControlled = controlledActiveFilters !== undefined
   const showAll = pageSize === 'all'
@@ -377,12 +379,16 @@ export function DataTable<TData, TValue>({
     return next
   }, [onGroupChange, getRowId])
 
+  // lockMove:true blocks reorder while a non-manual sort is active.
+  // lockMove:false (default) allows reorder but calls onSwitchToManual to clear sorting first.
+  const dragEnabled = !!onRowReorder && (!lockMove || sorting.length === 0)
+
   const {
     sensors,
     dragActiveId,
     draggingIds,
     dragOccurredRef,
-    handleDragStart,
+    handleDragStart: _handleDragStart,
     handleDragOver,
     handleDragEnd,
     handleDragCancel,
@@ -397,7 +403,13 @@ export function DataTable<TData, TValue>({
     groupBy,
     onGroupChange: reorderGroupChange,
     groupConfigs,
+    dragEnabled,
   })
+
+  const handleDragStart = React.useCallback((event: Parameters<typeof _handleDragStart>[0]) => {
+    if (!lockMove && sorting.length > 0) onSwitchToManual?.()
+    _handleDragStart(event)
+  }, [lockMove, sorting, onSwitchToManual, _handleDragStart])
 
   // The rows rendered in the floating DragOverlay that follows the cursor.
   // For a multi-row drag every dragged row is shown stacked in visible order.
@@ -465,6 +477,8 @@ export function DataTable<TData, TValue>({
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (activeRowIndex === null) return
+      if (lockMove && sorting.length > 0) return
+      if (!lockMove && sorting.length > 0) onSwitchToManual?.()
       e.preventDefault()
       suppressMouseRef.current = true
       const direction = e.key === 'ArrowUp' ? -1 : 1
@@ -538,7 +552,7 @@ export function DataTable<TData, TValue>({
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onRowReorder, activeRowIndex, getRowId, getStableId, groupBy, onGroupChange])
+  }, [onRowReorder, activeRowIndex, getRowId, getStableId, groupBy, onGroupChange, lockMove, sorting, onSwitchToManual])
 
   React.useEffect(() => {
     if (activeRowIndex === null) return
@@ -699,7 +713,7 @@ export function DataTable<TData, TValue>({
                               displayIndex={displayIndex}
                               activeRowIndex={activeRowIndex}
                               activeRowSource={activeRowSource}
-                              reorderable={!!onRowReorder}
+                              reorderable={dragEnabled}
                               hidden={draggingIds.has(row.id)}
                               onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                               onRowMouseEnter={(i) => {
@@ -723,7 +737,7 @@ export function DataTable<TData, TValue>({
                         displayIndex={index}
                         activeRowIndex={activeRowIndex}
                         activeRowSource={activeRowSource}
-                        reorderable={!!onRowReorder}
+                        reorderable={dragEnabled}
                         hidden={draggingIds.has(row.id)}
                         onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {
@@ -756,7 +770,8 @@ export function DataTable<TData, TValue>({
                           header.column.getCanSort()
                             ? () => {
                                 const sorted = header.column.getIsSorted()
-                                header.column.toggleSorting(sorted === 'asc')
+                                if (sorted === 'desc') header.column.clearSorting()
+                                else header.column.toggleSorting(sorted === 'asc')
                               }
                             : undefined
                         }
@@ -824,7 +839,7 @@ export function DataTable<TData, TValue>({
                                 displayIndex={displayIndex}
                                 activeRowIndex={activeRowIndex}
                                 activeRowSource={activeRowSource}
-                                reorderable={!!onRowReorder}
+                                reorderable={dragEnabled}
                                 hidden={draggingIds.has(row.id)}
                                 onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                                 onRowMouseEnter={(i) => {
@@ -847,7 +862,7 @@ export function DataTable<TData, TValue>({
                         displayIndex={index}
                         activeRowIndex={activeRowIndex}
                         activeRowSource={activeRowSource}
-                        reorderable={!!onRowReorder}
+                        reorderable={dragEnabled}
                         hidden={draggingIds.has(row.id)}
                         onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {

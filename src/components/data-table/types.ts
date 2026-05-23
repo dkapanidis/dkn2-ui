@@ -70,4 +70,12 @@ export interface DataTableProps<TData, TValue> {
   groupConfigs?: Record<string, GroupConfig>
   /** Called when a row is dragged into a different group; return the updated row */
   onGroupChange?: (row: TData, newGroupKey: string) => TData
+  /**
+   * When true, manual reorder (drag / alt+arrow) is blocked while a non-manual
+   * sort is active. When false (default), initiating a reorder automatically
+   * switches to manual ordering by calling `onSwitchToManual`.
+   */
+  lockMove?: boolean
+  /** Called when the user initiates a reorder while sorting is active and lockMove is false. */
+  onSwitchToManual?: () => void
 }

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsDown, ChevronsUp, CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsDown, ChevronsUp, CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon, LockIcon, UnlockIcon } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 import { DataTable, type RowAction } from '../src/components/data-table'
@@ -432,6 +432,51 @@ export const WithRowReorder: Story = {
         onRowReorder={setData}
         pageSize="all"
       />
+    )
+  },
+}
+
+export const WithRowReorderLocked: Story = {
+  name: 'Row Reorder — Lock Move',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'With `lockMove={true}`, drag handles and alt+arrow are disabled while a column sort is active. Clearing the sort re-enables manual reorder.',
+      },
+    },
+  },
+  render: () => {
+    const [data, setData] = React.useState(people.slice(0, 6))
+    const { columns } = useStatefulPeople(data)
+    const [sorting, setSorting] = React.useState<{ id: string; desc: boolean }[]>([])
+    const isSorted = sorting.length > 0
+
+    return (
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {isSorted ? (
+            <>
+              <LockIcon className="h-3.5 w-3.5" />
+              <span>Sorted by <strong className="text-foreground">{sorting[0].id}</strong> — reorder locked. Click the column header to clear sort.</span>
+            </>
+          ) : (
+            <>
+              <UnlockIcon className="h-3.5 w-3.5" />
+              <span>Manual order — drag or use <kbd className="rounded border border-border px-1 py-0.5 font-mono text-[10px]">⌥↑↓</kbd> to reorder.</span>
+            </>
+          )}
+        </div>
+        <DataTable
+          columns={columns}
+          data={data}
+          onRowReorder={setData}
+          lockMove
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pageSize="all"
+        />
+      </div>
     )
   },
 }
