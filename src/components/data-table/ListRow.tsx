@@ -7,6 +7,20 @@ import type { RowViewProps } from './SortableRow'
 export const listRowClassName =
   'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 select-none outline-none text-sm'
 
+export function rowStateClasses(
+  isSelected: boolean,
+  isActive: boolean,
+  activeRowSource: 'keyboard' | 'mouse',
+) {
+  return cn(
+    isSelected && 'bg-primary/10',
+    isActive && isSelected && 'bg-primary/15',
+    isActive && !isSelected && activeRowSource === 'mouse' && 'bg-muted/30',
+    isActive && !isSelected && activeRowSource === 'keyboard' && 'bg-primary/10',
+    isActive && activeRowSource === 'keyboard' && 'row-ring',
+  )
+}
+
 export function ListRowCells<TData>({ row, isSelected, activeRowIndex, displayIndex }: {
   row: Row<TData>
   isSelected: boolean
@@ -101,9 +115,7 @@ export function ListRow<TData>({
       className={cn(
         listRowClassName,
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        isSelected && 'bg-selected/10',
-        isActive && (isSelected ? 'bg-selected/15' : 'bg-muted/25'),
-        isActive && activeRowSource === 'keyboard' && 'row-ring',
+        rowStateClasses(isSelected, isActive, activeRowSource),
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { type ColumnDef } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsDown, ChevronsUp, CircleIcon, Dot, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon, LockIcon, UnlockIcon } from 'lucide-react'
+import { CircleIcon, CircleDashedIcon, CircleDotDashedIcon, CircleSlashIcon, MailIcon, ShieldIcon, TrashIcon, UserCheckIcon, LockIcon, UnlockIcon } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
-import { DataTable, type RowAction } from '../src/components/data-table'
+import { DataTable, type RowAction, type GroupConfig } from '../src/components/data-table'
 import { Badge } from '../src/components/ui/badge'
 import {
   Command,
@@ -344,93 +344,53 @@ export const WithRowReorder: Story = {
   parameters: {
     docs: {
       description: {
-        story: 'Drag the grip handle to manually reorder rows. The parent owns the data order.',
+        story: 'Drag the grip handle or use ⌥↑/↓ (⌥⇧↑/↓ to jump to top/bottom) to reorder rows. The parent owns the data order.',
       },
     },
   },
   render: () => {
     const [data, setData] = React.useState(people.slice(0, 6))
     const { columns } = useStatefulPeople(data)
-
-    function movePeople(rows: Person[], direction: 'top' | 'up' | 'down' | 'bottom') {
-      const selectedIds = new Set(rows.map((r) => r.id))
-      setData((prev) => {
-        const result = [...prev]
-        if (direction === 'top') {
-          const selected = result.filter((r) => selectedIds.has(r.id))
-          const rest = result.filter((r) => !selectedIds.has(r.id))
-          return [...selected, ...rest]
-        }
-        if (direction === 'bottom') {
-          const selected = result.filter((r) => selectedIds.has(r.id))
-          const rest = result.filter((r) => !selectedIds.has(r.id))
-          return [...rest, ...selected]
-        }
-        const positions = result
-          .map((r, i) => ({ r, i }))
-          .filter(({ r }) => selectedIds.has(r.id))
-          .map(({ i }) => i)
-        if (direction === 'up') {
-          for (const pos of positions) {
-            if (pos > 0 && !selectedIds.has(result[pos - 1].id)) {
-              ;[result[pos - 1], result[pos]] = [result[pos], result[pos - 1]]
-            }
-          }
-        } else {
-          for (const pos of [...positions].reverse()) {
-            if (pos < result.length - 1 && !selectedIds.has(result[pos + 1].id)) {
-              ;[result[pos], result[pos + 1]] = [result[pos + 1], result[pos]]
-            }
-          }
-        }
-        return result
-      })
-    }
-
-    const moveRowActions: RowAction<Person>[] = [
-      {
-        label: 'Move',
-        subActions: [
-          {
-            label: 'Move to top',
-            icon: <ChevronsUp />,
-            shortcut: '⌥⇧↑',
-            shortcutKeys: { key: 'ArrowUp', altKey: true, shiftKey: true },
-            onClick: (rows) => movePeople(rows, 'top'),
-          },
-          {
-            label: 'Move up',
-            icon: <ArrowUp />,
-            shortcut: '⌥↑',
-            shortcutKeys: { key: 'ArrowUp', altKey: true },
-            onClick: (rows) => movePeople(rows, 'up'),
-          },
-          {
-            label: 'Move down',
-            icon: <ArrowDown />,
-            shortcut: '⌥↓',
-            shortcutKeys: { key: 'ArrowDown', altKey: true },
-            onClick: (rows) => movePeople(rows, 'down'),
-          },
-          {
-            label: 'Move to bottom',
-            icon: <ChevronsDown />,
-            shortcut: '⌥⇧↓',
-            shortcutKeys: { key: 'ArrowDown', altKey: true, shiftKey: true },
-            onClick: (rows) => movePeople(rows, 'bottom'),
-          },
-        ],
-      },
-    ]
-
     return (
       <DataTable
         columns={columns}
         data={data}
-        rowActions={moveRowActions}
         getRowLabel={(p) => p.name}
         onRowReorder={setData}
         pageSize="all"
+      />
+    )
+  },
+}
+
+const statusGroupConfigs: Record<string, GroupConfig> = {
+  active:   { label: 'Active',   icon: <CircleDotDashedIcon className="h-3.5 w-3.5 text-green-500" />,  order: 0 },
+  pending:  { label: 'Pending',  icon: <CircleDashedIcon    className="h-3.5 w-3.5 text-yellow-500" />, order: 1 },
+  inactive: { label: 'Inactive', icon: <CircleSlashIcon     className="h-3.5 w-3.5 text-muted-foreground" />, order: 2 },
+}
+
+export const WithGroupsAndReorder: Story = {
+  name: 'Groups + Reorder',
+  parameters: {
+    docs: {
+      description: {
+        story: 'Rows grouped by status. Drag or ⌥↑/↓ to reorder within a group; drag or ⌥↑/↓ across the group header to move a row into a different group.',
+      },
+    },
+  },
+  render: () => {
+    const [data, setData] = React.useState(people.slice(0, 8))
+    const { columns } = useStatefulPeople(data)
+    return (
+      <DataTable
+        columns={columns}
+        data={data}
+        getRowLabel={(p) => p.name}
+        onRowReorder={setData}
+        pageSize="all"
+        groupBy={(row) => row.status}
+        groupConfigs={statusGroupConfigs}
+        onGroupChange={(row, newKey) => ({ ...row, status: newKey as Person['status'] })}
       />
     )
   },

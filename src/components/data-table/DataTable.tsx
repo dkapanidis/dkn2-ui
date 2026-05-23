@@ -488,41 +488,62 @@ export function DataTable<TData, TValue>({
       if (!activeRow) return
       const isMulti = activeRow.getIsSelected() && selectedCount > 1
       if (isMulti) {
-        const nonSelectedVisibleIndices = currentVisibleRows
-          .map((r, i) => r.getIsSelected() ? -1 : i).filter(i => i !== -1)
-        const insertAt_original = nonSelectedVisibleIndices.filter(i => i < activeRowIndex).length
-        const insertAt = e.shiftKey
-          ? (direction === -1 ? 0 : nonSelectedVisibleIndices.length)
-          : Math.max(0, Math.min(nonSelectedVisibleIndices.length, insertAt_original + direction))
-        if (insertAt === insertAt_original) return
         const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
         const vod = visualOrderedDataRef.current
-        // Detect cross-group: the unselected item being stepped over is in a different group
-        const stepOverItem = direction === 1
-          ? vod.filter(item => !selectedIdSet.has(idFn(item)))[insertAt - 1]
-          : vod.filter(item => !selectedIdSet.has(idFn(item)))[insertAt]
-        const activeGroupKey = groupBy ? groupBy(activeRow.original) : null
-        const stepOverGroupKey = stepOverItem && groupBy ? groupBy(stepOverItem) : null
-        const isCrossGroup = activeGroupKey !== null && stepOverGroupKey !== null && activeGroupKey !== stepOverGroupKey
-        if (isCrossGroup && groupBy && onGroupChange) {
-          // Don't move positions — just change the group for all selected items
-          const newGroupKey = stepOverGroupKey!
-          const next = vod.map(item => selectedIdSet.has(idFn(item)) ? onGroupChange(item, newGroupKey) : item)
+        const activeId = idFn(activeRow.original)
+
+        if (e.shiftKey) {
+          // Move all selected items to the top or bottom as a block
+          const selected = vod.filter(item => selectedIdSet.has(idFn(item)))
+          const unselected = vod.filter(item => !selectedIdSet.has(idFn(item)))
+          const next = direction === -1 ? [...selected, ...unselected] : [...unselected, ...selected]
           setOrderedData(next)
           onRowReorder(next)
-          setActiveRowIndex(activeRowIndex)
+          const rankInSelected = selected.findIndex(item => idFn(item) === activeId)
+          setActiveRowIndex(direction === -1 ? rankInSelected : unselected.length + rankInSelected)
           return
         }
-        const selectedItems = vod.filter(item => selectedIdSet.has(idFn(item)))
-        const unselectedItems = vod.filter(item => !selectedIdSet.has(idFn(item)))
-        let next: TData[] = [
-          ...unselectedItems.slice(0, insertAt),
-          ...selectedItems,
-          ...unselectedItems.slice(insertAt),
-        ]
-        setOrderedData(next)
-        onRowReorder(next)
-        setActiveRowIndex(activeRowIndex + (insertAt - insertAt_original))
+
+        const activeVodIdx = vod.findIndex(item => idFn(item) === activeId)
+
+        // Cross-group: if the active row steps over an item in a different group,
+        // change the group for all selected items without repositioning.
+        if (groupBy && onGroupChange && activeVodIdx !== -1) {
+          const stepOverVodIdx = activeVodIdx + direction
+          if (stepOverVodIdx >= 0 && stepOverVodIdx < vod.length && !selectedIdSet.has(idFn(vod[stepOverVodIdx]))) {
+            const activeGroupKey = groupBy(activeRow.original)
+            const stepOverGroupKey = groupBy(vod[stepOverVodIdx])
+            if (activeGroupKey !== stepOverGroupKey) {
+              const next = vod.map(item => selectedIdSet.has(idFn(item)) ? onGroupChange(item, stepOverGroupKey) : item)
+              setOrderedData(next)
+              onRowReorder(next)
+              setActiveRowIndex(activeRowIndex)
+              return
+            }
+          }
+        }
+
+        // Each selected item independently swaps with its adjacent unselected neighbor.
+        const result = [...vod]
+        if (direction === -1) {
+          for (let i = 0; i < result.length; i++) {
+            if (selectedIdSet.has(idFn(result[i])) && i > 0 && !selectedIdSet.has(idFn(result[i - 1]))) {
+              ;[result[i - 1], result[i]] = [result[i], result[i - 1]]
+            }
+          }
+        } else {
+          for (let i = result.length - 1; i >= 0; i--) {
+            if (selectedIdSet.has(idFn(result[i])) && i < result.length - 1 && !selectedIdSet.has(idFn(result[i + 1]))) {
+              ;[result[i], result[i + 1]] = [result[i + 1], result[i]]
+            }
+          }
+        }
+        setOrderedData(result)
+        onRowReorder(result)
+        if (activeVodIdx !== -1) {
+          const newActiveVodIdx = result.findIndex(item => idFn(item) === activeId)
+          setActiveRowIndex(activeRowIndex + (newActiveVodIdx - activeVodIdx))
+        }
         return
       }
       const targetDisplayIndex = e.shiftKey

@@ -4,6 +4,7 @@ import { type Row, flexRender } from '@tanstack/react-table'
 import * as React from 'react'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { rowStateClasses } from './ListRow'
 
 export interface RowViewProps<TData> {
   row: Row<TData>
@@ -87,9 +88,7 @@ export function SortableRow<TData>({
       className={cn(
         'h-6 select-none outline-none',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        isSelected && 'bg-selected/10',
-        isActive && (isSelected ? 'bg-selected/15' : 'bg-muted/25'),
-        isActive && activeRowSource === 'keyboard' && 'row-ring',
+        rowStateClasses(isSelected, isActive, activeRowSource),
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
