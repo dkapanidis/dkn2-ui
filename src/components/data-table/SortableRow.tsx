@@ -53,10 +53,10 @@ export function SortableRowCells<TData>({ row, isSelected, isActive, activeRowSo
             className={cn(
               'py-1.5 text-sm',
               cell.column.id === '_select' && 'w-6 !pl-2 !pr-0',
-              isFirst && hasBackground && !prevSelected && 'rounded-tl-md',
-              isFirst && hasBackground && !nextSelected && 'rounded-bl-md',
-              isLast  && hasBackground && !prevSelected && 'rounded-tr-md',
-              isLast  && hasBackground && !nextSelected && 'rounded-br-md',
+              isFirst && hasBackground && !(isSelected && prevSelected) && 'rounded-tl-md',
+              isFirst && hasBackground && !(isSelected && nextSelected) && 'rounded-bl-md',
+              isLast  && hasBackground && !(isSelected && prevSelected) && 'rounded-tr-md',
+              isLast  && hasBackground && !(isSelected && nextSelected) && 'rounded-br-md',
             )}
             style={boxShadow ? { boxShadow } : undefined}
           >

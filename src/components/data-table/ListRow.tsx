@@ -116,8 +116,8 @@ export function ListRow<TData>({
         'mx-2',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         rowStateClasses(isSelected, isActive),
-        hasBackground && !prevSelected && 'rounded-t-md',
-        hasBackground && !nextSelected && 'rounded-b-md',
+        hasBackground && !(isSelected && prevSelected) && 'rounded-t-md',
+        hasBackground && !(isSelected && nextSelected) && 'rounded-b-md',
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}

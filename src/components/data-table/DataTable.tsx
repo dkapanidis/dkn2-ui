@@ -1017,16 +1017,17 @@ export function DataTable<TData, TValue>({
                   const prevSel = overlayRows[ri - 1]?.getIsSelected() ?? false
                   const nextSel = overlayRows[ri + 1]?.getIsSelected() ?? false
                   const isSingle = overlayRows.length === 1
-                  const hasBackground = r.getIsSelected() || isSingle
+                  const isSelected = r.getIsSelected()
+                  const hasBackground = isSelected || isSingle
                   return (
                     <div
                       key={r.id}
                       className={cn(
                         listRowClassName,
                         'mx-2',
-                        rowStateClasses(r.getIsSelected(), isSingle),
-                        hasBackground && !prevSel && 'rounded-t-md',
-                        hasBackground && !nextSel && 'rounded-b-md',
+                        rowStateClasses(isSelected, isSingle),
+                        hasBackground && !(isSelected && prevSel) && 'rounded-t-md',
+                        hasBackground && !(isSelected && nextSel) && 'rounded-b-md',
                       )}
                     >
                       <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={isSingle ? 0 : null} displayIndex={0} />
