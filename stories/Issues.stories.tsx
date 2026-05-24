@@ -541,7 +541,7 @@ function IssuesPage() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
-                  'px-3 py-2 text-sm border-b-2 transition-colors',
+                  'px-3 py-2 text-sm border-b-2 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   activeTab === tab
                     ? 'border-foreground text-foreground font-medium'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -550,7 +550,7 @@ function IssuesPage() {
                 {tab === 'all' ? 'All issues' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
-            <button className="px-2 py-2 text-muted-foreground hover:text-foreground">
+            <button className="px-2 py-2 text-muted-foreground hover:text-foreground rounded outline-none focus-visible:ring-1 focus-visible:ring-ring">
               <Settings2Icon className="h-4 w-4" />
             </button>
           </div>
@@ -580,7 +580,7 @@ function IssuesPage() {
             />
             <button
               onClick={() => setView(v => v === 'list' ? 'table' : 'list')}
-              className={cn('p-1.5 rounded', view === 'table' ? 'text-foreground' : 'hover:text-foreground')}
+              className={cn('p-1.5 rounded outline-none focus-visible:ring-1 focus-visible:ring-ring', view === 'table' ? 'text-foreground' : 'hover:text-foreground')}
               title={view === 'list' ? 'Switch to table view' : 'Switch to list view'}
             >
               {view === 'list' ? <TableIcon className="h-4 w-4" /> : <ListIcon className="h-4 w-4" />}
@@ -638,7 +638,7 @@ function IssuesPage() {
           <div className="flex items-center justify-center gap-1 py-4 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">70 issues</span>
             <span>hidden by display options</span>
-            <button className="ml-1 underline hover:text-foreground">Show options</button>
+            <button className="ml-1 underline hover:text-foreground rounded outline-none focus-visible:ring-1 focus-visible:ring-ring">Show options</button>
           </div>
         </div>
       </div>

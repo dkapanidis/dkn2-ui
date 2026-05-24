@@ -66,7 +66,7 @@ function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd 
     <div ref={setNodeRef} className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none">
       <button
         onClick={onToggle}
-        className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+        className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <ChevronDownIcon
           className={cn('h-3.5 w-3.5 transition-transform', collapsed && '-rotate-90')}
@@ -1070,7 +1070,7 @@ export function DataTable<TData, TValue>({
         rowActions={rowActions}
         onClearSelection={() => table.resetRowSelection()}
         onOpenActions={() => setActionsOpen(true)}
-        isDraggingMulti={!!dragActiveId && draggingIds.size > 1}
+        isDragging={!!dragActiveId}
         dragCrossesGroup={dragCrossesGroup}
       />
 
