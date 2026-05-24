@@ -1,13 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import * as React from 'react'
-import { toast } from 'sonner'
 import { Button } from '../src/components/ui/button'
-import { Toaster } from '../src/components/ui/sonner'
+import { Toaster, toast } from '../src/components/ui/sonner'
 
 function ToastDemo() {
   return (
     <div className="space-y-4">
-      <Toaster richColors />
+      <Toaster />
       <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
         Toast Variants
       </h3>

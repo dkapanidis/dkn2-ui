@@ -22,8 +22,8 @@ import {
 } from '@tanstack/react-table'
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, PlusIcon } from 'lucide-react'
 import * as React from 'react'
-import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/sonner'
 import {
   Table,
   TableBody,

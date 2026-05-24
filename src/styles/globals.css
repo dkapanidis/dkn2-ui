@@ -130,3 +130,10 @@
 @utility slide-out-to-right     { --tw-exit-translate-x: 100%; }
 @utility slide-out-to-left      { --tw-exit-translate-x: -100%; }
 
+/* Sonner toasts: keep the neutral popover background but tint the icon by
+   variant so state is conveyed by the icon alone. */
+[data-sonner-toast][data-type="success"] [data-icon] { color: oklch(0.62 0.19 145); }
+[data-sonner-toast][data-type="error"]   [data-icon] { color: var(--destructive); }
+[data-sonner-toast][data-type="warning"] [data-icon] { color: oklch(0.75 0.16 75); }
+[data-sonner-toast][data-type="info"]    [data-icon] { display: none !important; }
+
