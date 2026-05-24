@@ -1024,7 +1024,6 @@ export function DataTable<TData, TValue>({
                       key={r.id}
                       className={cn(
                         listRowClassName,
-                        'mx-2',
                         rowStateClasses(isSelected, isSingle),
                         hasBackground && !(isSelected && prevSel) && 'rounded-t-md',
                         hasBackground && !(isSelected && nextSel) && 'rounded-b-md',

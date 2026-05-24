@@ -113,7 +113,6 @@ export function ListRow<TData>({
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
         listRowClassName,
-        'mx-2',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         rowStateClasses(isSelected, isActive),
         hasBackground && !(isSelected && prevSelected) && 'rounded-t-md',
