@@ -64,7 +64,7 @@ function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd,
   // Droppable so a row dragged onto the header lands as the group's first item.
   const { setNodeRef } = useDroppable({ id: HEADER_DROPPABLE_PREFIX + groupKey })
   return (
-    <div ref={setNodeRef} className={cn(
+    <div ref={setNodeRef} data-group-header className={cn(
       'flex items-center gap-2 px-2 py-1.5 sticky top-0 z-10 select-none',
       multi ? 'bg-muted/50 rounded-md my-px' : 'border-b border-border bg-background',
     )}>
@@ -476,6 +476,22 @@ export function DataTable<TData, TValue>({
     return offset
   }, [dragActiveId, overlayRows, visibleRowIndexMap])
 
+  // Prevent the drag overlay from rising above the first group header in
+  // multi-group views — keeps the sticky header visible and avoids the
+  // nonsensical "drop above the first group title" gesture.
+  const restrictAboveFirstGroupHeader = React.useCallback(
+    ({ transform, draggingNodeRect }: { transform: { x: number; y: number; scaleX: number; scaleY: number }; draggingNodeRect: DOMRect | null }) => {
+      if (!draggingNodeRect) return transform
+      const headers = tableContainerRef.current?.querySelectorAll<HTMLElement>('[data-group-header]')
+      if (!headers || headers.length < 2) return transform
+      const firstHeader = headers[0]
+      const headerBottom = firstHeader.getBoundingClientRect().bottom
+      const minY = headerBottom - draggingNodeRect.top
+      return transform.y < minY ? { ...transform, y: minY } : transform
+    },
+    []
+  )
+
   useKeyboardHandler({
     rowActions,
     rows: visibleRows,
@@ -755,7 +771,7 @@ export function DataTable<TData, TValue>({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement, restrictAboveFirstGroupHeader]}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
