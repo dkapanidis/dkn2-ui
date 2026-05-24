@@ -583,32 +583,29 @@ export function DataTable<TData, TValue>({
 
         const activeVodIdx = vod.findIndex(item => idFn(item) === activeId)
 
-        // Stop at group boundaries — cross-group moves are drag-only.
-        if (groupBy) {
-          const selectedVodIndices = Array.from(selectedIdSet)
-            .map(id => vod.findIndex(item => idFn(item) === id))
-            .filter(i => i !== -1)
-          if (selectedVodIndices.length > 0) {
-            const edgeVodIdx = (direction === -1 ? Math.min(...selectedVodIndices) : Math.max(...selectedVodIndices)) + direction
-            if (edgeVodIdx >= 0 && edgeVodIdx < vod.length && !selectedIdSet.has(idFn(vod[edgeVodIdx]))) {
-              const selectedGroupKey = groupBy(vod.find(item => selectedIdSet.has(idFn(item)))!)
-              const stepOverGroupKey = groupBy(vod[edgeVodIdx])
-              if (selectedGroupKey !== stepOverGroupKey) return
-            }
-          }
-        }
-
         // Each selected item independently swaps with its adjacent unselected neighbor.
+        // Group boundaries act as walls: each item stops when it hits its own boundary,
+        // but other selected items in the same group continue moving independently.
         const result = [...vod]
         if (direction === -1) {
           for (let i = 0; i < result.length; i++) {
-            if (selectedIdSet.has(idFn(result[i])) && i > 0 && !selectedIdSet.has(idFn(result[i - 1]))) {
+            if (
+              selectedIdSet.has(idFn(result[i])) &&
+              i > 0 &&
+              !selectedIdSet.has(idFn(result[i - 1])) &&
+              (!groupBy || groupBy(result[i]) === groupBy(result[i - 1]))
+            ) {
               ;[result[i - 1], result[i]] = [result[i], result[i - 1]]
             }
           }
         } else {
           for (let i = result.length - 1; i >= 0; i--) {
-            if (selectedIdSet.has(idFn(result[i])) && i < result.length - 1 && !selectedIdSet.has(idFn(result[i + 1]))) {
+            if (
+              selectedIdSet.has(idFn(result[i])) &&
+              i < result.length - 1 &&
+              !selectedIdSet.has(idFn(result[i + 1])) &&
+              (!groupBy || groupBy(result[i]) === groupBy(result[i + 1]))
+            ) {
               ;[result[i], result[i + 1]] = [result[i + 1], result[i]]
             }
           }
