@@ -51,7 +51,7 @@ import { useKeyboardHandler } from './useKeyboardHandler'
 export type { DataTableProps, RowAction }
 export type { ShortcutKeys } from './types'
 
-function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd }: {
+function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd, multi }: {
   groupKey: string
   label: string
   icon?: React.ReactNode
@@ -59,11 +59,15 @@ function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd 
   collapsed: boolean
   onToggle: () => void
   onAdd?: () => void
+  multi?: boolean
 }) {
   // Droppable so a row dragged onto the header lands as the group's first item.
   const { setNodeRef } = useDroppable({ id: HEADER_DROPPABLE_PREFIX + groupKey })
   return (
-    <div ref={setNodeRef} className="flex items-center gap-2 px-2 py-1.5 border-b border-border sticky top-0 bg-background z-10 select-none">
+    <div ref={setNodeRef} className={cn(
+      'flex items-center gap-2 px-2 py-1.5 sticky top-0 z-10 select-none',
+      multi ? 'bg-muted/50 rounded-md my-px' : 'border-b border-border bg-background',
+    )}>
       <button
         onClick={onToggle}
         className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -778,6 +782,7 @@ export function DataTable<TData, TValue>({
                           icon={config?.icon}
                           count={groupRows.length}
                           collapsed={isCollapsed}
+                          multi={groupedRows.size > 1}
                           onToggle={() =>
                             setCollapsedGroups(prev => {
                               const next = new Set(prev)
@@ -910,6 +915,7 @@ export function DataTable<TData, TValue>({
                                 icon={config?.icon}
                                 count={groupRows.length}
                                 collapsed={isCollapsed}
+                                multi={groupedRows.size > 1}
                                 onToggle={() =>
                                   setCollapsedGroups(prev => {
                                     const next = new Set(prev)
