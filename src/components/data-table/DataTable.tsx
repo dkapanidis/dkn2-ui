@@ -38,7 +38,7 @@ import { ContextMenu } from './ContextMenu'
 import { FilterBar } from './FilterBar'
 import { FilterButton } from './FilterButton'
 import { FilterMenu } from './FilterMenu'
-import { ListRow, ListRowCells, listRowClassName } from './ListRow'
+import { ListRow, ListRowCells, listRowClassName, rowStateClasses } from './ListRow'
 import { RowCheckbox } from './RowCheckbox'
 import { SelectionBar } from './SelectionBar'
 import { SortableRow, SortableRowCells } from './SortableRow'
@@ -74,7 +74,6 @@ function GroupHeader({ groupKey, label, icon, count, collapsed, onToggle, onAdd 
       </button>
       {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}
       <span className="text-sm font-medium">{label}</span>
-      <span className="text-yellow-500 text-xs">⚠</span>
       <span className="text-xs text-muted-foreground">{count}</span>
       {onAdd && (
         <button
@@ -790,6 +789,8 @@ export function DataTable<TData, TValue>({
                         />
                         {!isCollapsed && groupRows.map((row) => {
                           const displayIndex = visibleRowIndexMap.get(row.id) ?? 0
+                          const prevSel = visibleRows[displayIndex - 1]?.getIsSelected() ?? false
+                          const nextSel = visibleRows[displayIndex + 1]?.getIsSelected() ?? false
                           return (
                             <ListRow
                               key={row.id}
@@ -799,6 +800,8 @@ export function DataTable<TData, TValue>({
                               activeRowSource={activeRowSource}
                               reorderable={dragEnabled}
                               hidden={draggingIds.has(row.id)}
+                              prevSelected={prevSel}
+                              nextSelected={nextSel}
                               onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                               onRowMouseEnter={(i) => {
                                 if (suppressMouseRef.current) return
@@ -814,6 +817,8 @@ export function DataTable<TData, TValue>({
                   })
                 ) : (
                   rows.map((row, index) => {
+                    const prevSel = rows[index - 1]?.getIsSelected() ?? false
+                    const nextSel = rows[index + 1]?.getIsSelected() ?? false
                     return (
                       <ListRow
                         key={row.id}
@@ -823,6 +828,8 @@ export function DataTable<TData, TValue>({
                         activeRowSource={activeRowSource}
                         reorderable={dragEnabled}
                         hidden={draggingIds.has(row.id)}
+                        prevSelected={prevSel}
+                        nextSelected={nextSel}
                         onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {
                           if (suppressMouseRef.current) return
@@ -916,6 +923,8 @@ export function DataTable<TData, TValue>({
                           </TableRow>
                           {!isCollapsed && groupRows.map((row) => {
                             const displayIndex = visibleRowIndexMap.get(row.id) ?? 0
+                            const prevSel = visibleRows[displayIndex - 1]?.getIsSelected() ?? false
+                            const nextSel = visibleRows[displayIndex + 1]?.getIsSelected() ?? false
                             return (
                               <SortableRow
                                 key={row.id}
@@ -925,6 +934,8 @@ export function DataTable<TData, TValue>({
                                 activeRowSource={activeRowSource}
                                 reorderable={dragEnabled}
                                 hidden={draggingIds.has(row.id)}
+                                prevSelected={prevSel}
+                                nextSelected={nextSel}
                                 onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                                 onRowMouseEnter={(i) => {
                                   if (suppressMouseRef.current) return
@@ -940,6 +951,8 @@ export function DataTable<TData, TValue>({
                     })
                   ) : (
                     visibleRows.map((row, index) => {
+                      const prevSel = visibleRows[index - 1]?.getIsSelected() ?? false
+                      const nextSel = visibleRows[index + 1]?.getIsSelected() ?? false
                       return <SortableRow
                         key={row.id}
                         row={row}
@@ -948,6 +961,8 @@ export function DataTable<TData, TValue>({
                         activeRowSource={activeRowSource}
                         reorderable={dragEnabled}
                         hidden={draggingIds.has(row.id)}
+                        prevSelected={prevSel}
+                        nextSelected={nextSel}
                         onRowClick={(i, shiftKey) => handleRowClick(i, shiftKey, () => row.toggleSelected())}
                         onRowMouseEnter={(i) => {
                           if (suppressMouseRef.current) return
@@ -980,31 +995,44 @@ export function DataTable<TData, TValue>({
                     ))}
                   </colgroup>
                   <tbody>
-                    {overlayRows.map((r) => (
+                    {overlayRows.map((r, ri) => (
                       <TableRow
                         key={r.id}
-                        className={cn('h-6 select-none outline-none', overlayRows.length === 1
-                          ? (r.getIsSelected() ? 'bg-selected/15' : 'bg-muted/50')
-                          : (r.getIsSelected() ? 'bg-selected/10' : 'bg-background')
-                        )}
+                        className={cn('h-6 select-none outline-none', rowStateClasses(r.getIsSelected(), overlayRows.length === 1))}
                       >
-                        <SortableRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
+                        <SortableRowCells
+                          row={r}
+                          isSelected={r.getIsSelected()}
+                          isActive={overlayRows.length === 1}
+                          activeRowSource="mouse"
+                          prevSelected={overlayRows[ri - 1]?.getIsSelected() ?? false}
+                          nextSelected={overlayRows[ri + 1]?.getIsSelected() ?? false}
+                        />
                       </TableRow>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                overlayRows.map((r) => (
-                  <div
-                    key={r.id}
-                    className={cn(listRowClassName, overlayRows.length === 1
-                      ? (r.getIsSelected() ? 'bg-selected/15' : 'bg-muted/50')
-                      : (r.getIsSelected() ? 'bg-selected/10' : 'bg-background')
-                    )}
-                  >
-                    <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={null} displayIndex={-1} />
-                  </div>
-                ))
+                overlayRows.map((r, ri) => {
+                  const prevSel = overlayRows[ri - 1]?.getIsSelected() ?? false
+                  const nextSel = overlayRows[ri + 1]?.getIsSelected() ?? false
+                  const isSingle = overlayRows.length === 1
+                  const hasBackground = r.getIsSelected() || isSingle
+                  return (
+                    <div
+                      key={r.id}
+                      className={cn(
+                        listRowClassName,
+                        'mx-2',
+                        rowStateClasses(r.getIsSelected(), isSingle),
+                        hasBackground && !prevSel && 'rounded-t-md',
+                        hasBackground && !nextSel && 'rounded-b-md',
+                      )}
+                    >
+                      <ListRowCells row={r} isSelected={r.getIsSelected()} activeRowIndex={isSingle ? 0 : null} displayIndex={0} />
+                    </div>
+                  )
+                })
               )}
             </div>
           ) : null}

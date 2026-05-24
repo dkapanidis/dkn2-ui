@@ -18,33 +18,58 @@ export interface RowViewProps<TData> {
   onRowClick: (index: number, shiftKey: boolean) => void
   onRowMouseEnter: (index: number) => void
   onContextMenu: (e: React.MouseEvent, index: number) => void
+  prevSelected?: boolean
+  nextSelected?: boolean
 }
 
-export function SortableRowCells<TData>({ row, isSelected, activeRowIndex, displayIndex }: {
+export function SortableRowCells<TData>({ row, isSelected, isActive, activeRowSource, prevSelected = false, nextSelected = false }: {
   row: Row<TData>
   isSelected: boolean
-  activeRowIndex: number | null
-  displayIndex: number
+  isActive: boolean
+  activeRowSource: 'keyboard' | 'mouse'
+  prevSelected?: boolean
+  nextSelected?: boolean
 }) {
+  const cells = row.getVisibleCells()
+  const hasBackground = isSelected || isActive
+  const isRing = isActive && activeRowSource === 'keyboard'
+  const tb = 'inset 0 1px 0 0 var(--selected-border), inset 0 -1px 0 0 var(--selected-border)'
+
   return (
     <>
-      {row.getVisibleCells().map((cell) => (
-        <TableCell
-          key={cell.id}
-          className={cn(
-            'py-1.5 text-sm',
-            cell.column.id === '_select' && 'w-6 !pl-2 !pr-0'
-          )}
-        >
-          {cell.column.id === '_select' ? (
-            <span className={cn('flex items-center', !isSelected && activeRowIndex !== displayIndex && 'opacity-0')}>
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </span>
-          ) : (
-            flexRender(cell.column.columnDef.cell, cell.getContext())
-          )}
-        </TableCell>
-      ))}
+      {cells.map((cell, ci) => {
+        const isFirst = ci === 0
+        const isLast = ci === cells.length - 1
+        let boxShadow: string | undefined
+        if (isRing) {
+          if (isFirst && isLast) boxShadow = `inset 1px 0 0 0 var(--selected-border), inset -1px 0 0 0 var(--selected-border), ${tb}`
+          else if (isFirst)     boxShadow = `inset 1px 0 0 0 var(--selected-border), ${tb}`
+          else if (isLast)      boxShadow = `inset -1px 0 0 0 var(--selected-border), ${tb}`
+          else                  boxShadow = tb
+        }
+        return (
+          <TableCell
+            key={cell.id}
+            className={cn(
+              'py-1.5 text-sm',
+              cell.column.id === '_select' && 'w-6 !pl-2 !pr-0',
+              isFirst && hasBackground && !prevSelected && 'rounded-tl-md',
+              isFirst && hasBackground && !nextSelected && 'rounded-bl-md',
+              isLast  && hasBackground && !prevSelected && 'rounded-tr-md',
+              isLast  && hasBackground && !nextSelected && 'rounded-br-md',
+            )}
+            style={boxShadow ? { boxShadow } : undefined}
+          >
+            {cell.column.id === '_select' ? (
+              <span className={cn('flex items-center', !isSelected && !isActive && 'opacity-0')}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </span>
+            ) : (
+              flexRender(cell.column.columnDef.cell, cell.getContext())
+            )}
+          </TableCell>
+        )
+      })}
     </>
   )
 }
@@ -59,6 +84,8 @@ export function SortableRow<TData>({
   onRowClick,
   onRowMouseEnter,
   onContextMenu,
+  prevSelected,
+  nextSelected,
 }: RowViewProps<TData>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
@@ -88,13 +115,13 @@ export function SortableRow<TData>({
       className={cn(
         'h-6 select-none outline-none',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        rowStateClasses(isSelected, isActive, activeRowSource),
+        rowStateClasses(isSelected, isActive),
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
       onContextMenu={(e) => onContextMenu(e, displayIndex)}
     >
-      <SortableRowCells row={row} isSelected={isSelected} activeRowIndex={activeRowIndex} displayIndex={displayIndex} />
+      <SortableRowCells row={row} isSelected={isSelected} isActive={isActive} activeRowSource={activeRowSource} prevSelected={prevSelected} nextSelected={nextSelected} />
     </TableRow>
   )
 }

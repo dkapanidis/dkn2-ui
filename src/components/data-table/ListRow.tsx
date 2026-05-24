@@ -5,18 +5,13 @@ import { cn } from '@/lib/utils'
 import type { RowViewProps } from './SortableRow'
 
 export const listRowClassName =
-  'flex items-center gap-2 px-2 py-1.5 border-b border-border/40 select-none outline-none text-sm'
+  'flex items-center gap-2 px-2 py-1.5 select-none outline-none text-sm'
 
-export function rowStateClasses(
-  isSelected: boolean,
-  isActive: boolean,
-  activeRowSource: 'keyboard' | 'mouse',
-) {
+export function rowStateClasses(isSelected: boolean, isActive: boolean) {
   return cn(
     isSelected && 'bg-selected/10',
     isActive && isSelected && 'bg-selected/15',
     isActive && !isSelected && 'bg-muted/50',
-    isActive && activeRowSource === 'keyboard' && 'row-ring',
   )
 }
 
@@ -85,6 +80,8 @@ export function ListRow<TData>({
   onRowClick,
   onRowMouseEnter,
   onContextMenu,
+  prevSelected,
+  nextSelected,
 }: RowViewProps<TData>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
@@ -97,6 +94,8 @@ export function ListRow<TData>({
 
   const isSelected = row.getIsSelected()
   const isActive = activeRowIndex === displayIndex
+  const hasBackground = isSelected || isActive
+  const isRing = isActive && activeRowSource === 'keyboard'
 
   return (
     <div
@@ -108,13 +107,17 @@ export function ListRow<TData>({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: hidden || isDragging ? 0 : undefined,
+        boxShadow: isRing ? 'inset 0 0 0 1px var(--selected-border)' : undefined,
       }}
       data-display-index={displayIndex}
       data-state={isSelected ? 'selected' : undefined}
       className={cn(
         listRowClassName,
+        'mx-2',
         reorderable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        rowStateClasses(isSelected, isActive, activeRowSource),
+        rowStateClasses(isSelected, isActive),
+        hasBackground && !prevSelected && 'rounded-t-md',
+        hasBackground && !nextSelected && 'rounded-b-md',
       )}
       onClick={(e) => onRowClick(displayIndex, e.shiftKey)}
       onMouseEnter={() => onRowMouseEnter(displayIndex)}
