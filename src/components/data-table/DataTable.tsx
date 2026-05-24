@@ -149,6 +149,7 @@ export function DataTable<TData, TValue>({
   const [actionPage, setActionPage] = React.useState<RowAction<TData> | null>(null)
   const [orderedData, setOrderedData] = React.useState<TData[]>(data)
   const suppressMouseRef = React.useRef(false)
+  const pendingActiveIdRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
     setRowSelection({})
@@ -328,6 +329,15 @@ export function DataTable<TData, TValue>({
     visibleRows.forEach((row, i) => map.set(row.id, i))
     return map
   }, [visibleRows])
+
+  // Re-sync activeRowIndex by ID after any reorder that may change group render order.
+  React.useEffect(() => {
+    if (pendingActiveIdRef.current === null) return
+    const id = pendingActiveIdRef.current
+    pendingActiveIdRef.current = null
+    const newIdx = visibleRowIndexMap.get(id)
+    if (newIdx !== undefined) setActiveRowIndex(newIdx)
+  }, [visibleRowIndexMap])
 
   // orderedData re-sorted to match the grouped visual order so that drag/keyboard
   // index operations work in the same space as what the user sees on screen.
@@ -533,45 +543,57 @@ export function DataTable<TData, TValue>({
       const currentVisibleRows = visibleRowsRef.current
       const activeRow = currentVisibleRows[activeRowIndex]
       if (!activeRow) return
-      const isMulti = activeRow.getIsSelected() && table.getSelectedRowModel().rows.length > 1
+      const isMulti = table.getSelectedRowModel().rows.length > 0
       if (isMulti) {
         const selectedIdSet = new Set(table.getSelectedRowModel().rows.map(r => r.id))
         const vod = visualOrderedDataRef.current
         const activeId = idFn(activeRow.original)
 
+        if (groupBy) {
+          const selectedGroups = new Set(
+            vod.filter(item => selectedIdSet.has(idFn(item))).map(item => groupBy(item))
+          )
+          if (selectedGroups.size > 1) {
+            toast.info('Cannot move rows from multiple groups.')
+            return
+          }
+        }
+
         if (e.shiftKey) {
-          // Move all selected items to the top or bottom as a block
-          const selected = vod.filter(item => selectedIdSet.has(idFn(item)))
-          const unselected = vod.filter(item => !selectedIdSet.has(idFn(item)))
-          const next = direction === -1 ? [...selected, ...unselected] : [...unselected, ...selected]
+          // Move selected items to the top or bottom within their own group (or globally if no groups).
+          let next: TData[]
+          if (groupBy) {
+            const selectedGroupKey = groupBy(vod.find(item => selectedIdSet.has(idFn(item)))!)
+            const inGroup = vod.filter(item => groupBy(item) === selectedGroupKey)
+            const groupSel = inGroup.filter(item => selectedIdSet.has(idFn(item)))
+            const groupUnsel = inGroup.filter(item => !selectedIdSet.has(idFn(item)))
+            const newGroup = direction === -1 ? [...groupSel, ...groupUnsel] : [...groupUnsel, ...groupSel]
+            let gi = 0
+            next = vod.map(item => groupBy(item) === selectedGroupKey ? newGroup[gi++] : item)
+          } else {
+            const selected = vod.filter(item => selectedIdSet.has(idFn(item)))
+            const unselected = vod.filter(item => !selectedIdSet.has(idFn(item)))
+            next = direction === -1 ? [...selected, ...unselected] : [...unselected, ...selected]
+          }
           setOrderedData(next)
           onRowReorder(next)
-          const rankInSelected = selected.findIndex(item => idFn(item) === activeId)
-          setActiveRowIndex(direction === -1 ? rankInSelected : unselected.length + rankInSelected)
+          pendingActiveIdRef.current = activeId
           return
         }
 
         const activeVodIdx = vod.findIndex(item => idFn(item) === activeId)
 
-        // Cross-group: check the leading edge of the whole selection in the movement
-        // direction (not just the active row) so multi-row selections trigger when
-        // any edge item hits a group boundary.
-        if (groupBy && onGroupChange) {
+        // Stop at group boundaries — cross-group moves are drag-only.
+        if (groupBy) {
           const selectedVodIndices = Array.from(selectedIdSet)
             .map(id => vod.findIndex(item => idFn(item) === id))
             .filter(i => i !== -1)
           if (selectedVodIndices.length > 0) {
             const edgeVodIdx = (direction === -1 ? Math.min(...selectedVodIndices) : Math.max(...selectedVodIndices)) + direction
             if (edgeVodIdx >= 0 && edgeVodIdx < vod.length && !selectedIdSet.has(idFn(vod[edgeVodIdx]))) {
-              const activeGroupKey = groupBy(activeRow.original)
+              const selectedGroupKey = groupBy(vod.find(item => selectedIdSet.has(idFn(item)))!)
               const stepOverGroupKey = groupBy(vod[edgeVodIdx])
-              if (activeGroupKey !== stepOverGroupKey) {
-                const next = vod.map(item => selectedIdSet.has(idFn(item)) ? reorderGroupChange(item, stepOverGroupKey) : item)
-                setOrderedData(next)
-                onRowReorder(next)
-                setActiveRowIndex(activeRowIndex)
-                return
-              }
+              if (selectedGroupKey !== stepOverGroupKey) return
             }
           }
         }
@@ -605,17 +627,8 @@ export function DataTable<TData, TValue>({
       if (targetDisplayIndex === activeRowIndex) return
       const targetRow = currentVisibleRows[targetDisplayIndex]
       const vod = visualOrderedDataRef.current
-      // When crossing a group boundary, skip arrayMove — item is already adjacent to
-      // the new group in vod, so just changing the group makes it first (DOWN) or last (UP).
-      if (groupBy && onGroupChange && groupBy(activeRow.original) !== groupBy(targetRow.original)) {
-        const newGroupKey = groupBy(targetRow.original)
-        const updated = onGroupChange(activeRow.original, newGroupKey)
-        const next = vod.map(item => idFn(item) === idFn(activeRow.original) ? updated : item)
-        setOrderedData(next)
-        onRowReorder(next)
-        setActiveRowIndex(activeRowIndex)
-        return
-      }
+      // Stop at group boundaries — cross-group moves are drag-only.
+      if (groupBy && groupBy(activeRow.original) !== groupBy(targetRow.original)) return
       const fromIdx = vod.findIndex(item => idFn(item) === idFn(activeRow.original))
       const toIdx = vod.findIndex(item => idFn(item) === idFn(targetRow.original))
       if (fromIdx === -1 || toIdx === -1) return

@@ -136,6 +136,7 @@ export function useKeyboardHandler<TData>({
         )
       } else if ((e.key === ' ' || e.key === 'x') && activeRowIndex !== null) {
         e.preventDefault()
+        suppressMouseRef.current = true
         rows[activeRowIndex]?.toggleSelected()
       } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length && effectiveRows.length) {
         e.preventDefault()

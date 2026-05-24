@@ -1,5 +1,4 @@
 import {
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -7,7 +6,6 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import type { Row, Table } from '@tanstack/react-table'
 import * as React from 'react'
 import type { GroupConfig } from './types'
@@ -61,7 +59,6 @@ export function useDrag<TData>({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
   // Identity of an order array, used to skip redundant state updates.
