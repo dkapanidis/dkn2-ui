@@ -637,9 +637,21 @@ export function DataTable<TData, TValue>({
         }
         return
       }
-      const targetDisplayIndex = e.shiftKey
-        ? (direction === -1 ? 0 : currentVisibleRows.length - 1)
-        : Math.max(0, Math.min(currentVisibleRows.length - 1, activeRowIndex + direction))
+      let targetDisplayIndex: number
+      if (e.shiftKey) {
+        if (groupBy) {
+          const activeGroupKey = groupBy(activeRow.original)
+          const groupIndices = currentVisibleRows
+            .map((r, i) => ({ i, key: groupBy(r.original) }))
+            .filter(({ key }) => key === activeGroupKey)
+            .map(({ i }) => i)
+          targetDisplayIndex = direction === -1 ? groupIndices[0] : groupIndices[groupIndices.length - 1]
+        } else {
+          targetDisplayIndex = direction === -1 ? 0 : currentVisibleRows.length - 1
+        }
+      } else {
+        targetDisplayIndex = Math.max(0, Math.min(currentVisibleRows.length - 1, activeRowIndex + direction))
+      }
       if (targetDisplayIndex === activeRowIndex) return
       const targetRow = currentVisibleRows[targetDisplayIndex]
       const vod = visualOrderedDataRef.current
