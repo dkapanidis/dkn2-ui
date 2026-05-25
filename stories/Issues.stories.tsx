@@ -29,7 +29,8 @@ import {
   UsersIcon,
 } from 'lucide-react'
 import * as React from 'react'
-import { DataTable, FilterBar, FilterButton, FilterMenu, type GroupConfig, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
+import { CreateIssueDialog, defaultIssueSchema, type IssueCreateValues } from '../src/components/create-issue'
+import { DataTable, FilterBar, FilterMenu, type GroupConfig, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../src/components/ui/select'
@@ -43,7 +44,7 @@ interface Issue {
   status: 'backlog' | 'todo' | 'in-progress' | 'done' | 'cancelled'
   label?: string
   labelColor?: string
-  priority?: 'medium' | 'high'
+  priority?: 'low' | 'medium' | 'high'
   createdAt: string
   updatedAt: string
   project?: string
@@ -118,8 +119,10 @@ const issueColumns: ColumnDef<Issue>[] = [
         <div className="flex items-center gap-0.5">
           {p === 'high'
             ? <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            : <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />}
-          <span className="text-xs text-muted-foreground">{p === 'high' ? 'H' : 'M'}</span>
+            : p === 'medium'
+            ? <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+            : <ArrowDownIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />}
+          <span className="text-xs text-muted-foreground">{p === 'high' ? 'H' : p === 'medium' ? 'M' : 'L'}</span>
         </div>
       )
     },
@@ -173,8 +176,9 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
     label: 'Priority',
     icon: <AlertCircleIcon className="h-3.5 w-3.5" />,
     options: [
-      { value: 'medium', label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
       { value: 'high', label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
+      { value: 'medium', label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+      { value: 'low', label: 'Low', icon: <ArrowDownIcon className="h-3.5 w-3.5 text-blue-400" /> },
       { value: '', label: 'No priority', icon: <ArrowDownIcon className="h-3.5 w-3.5 text-muted-foreground/40" /> },
     ],
     filterFn: (row, values) => values.includes(row.priority ?? ''),
@@ -417,6 +421,7 @@ function IssuesPage() {
   const [data, setData] = React.useState(issues)
   const [activeFilters, setActiveFilters] = React.useState<TableActiveFilter[]>([])
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
+  const [createOpen, setCreateOpen] = React.useState(false)
   const filterButtonRef = React.useRef<HTMLButtonElement>(null)
   const [sortField, setSortField] = React.useState<SortField | null>(null)
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc')
@@ -481,20 +486,48 @@ function IssuesPage() {
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (createOpen) return
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault()
         setFilterMenuOpen(prev => !prev)
       }
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault()
+        setCreateOpen(true)
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [createOpen])
+
+  const handleCreateIssue = (values: IssueCreateValues) => {
+    const newId = String(Date.now())
+    const newIssue: Issue = {
+      id: newId,
+      code: `ACM-${newId.slice(-3)}`,
+      title: values.title,
+      status: values.status,
+      priority: values.priority,
+      label: values.labels[0],
+      labelColor: values.labels[0] === 'Improvement' ? 'green' : values.labels[0] === 'UI' ? 'blue' : undefined,
+      project: values.project,
+      createdAt: 'May 25',
+      updatedAt: 'May 25',
+    }
+    setData(prev => [newIssue, ...prev])
+  }
 
   return (
     <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
       <Toaster richColors />
+      <CreateIssueDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        schema={defaultIssueSchema}
+        onCreate={handleCreateIssue}
+      />
       <SideMenu
         items={workspaceNavItems}
         activeId="issues"

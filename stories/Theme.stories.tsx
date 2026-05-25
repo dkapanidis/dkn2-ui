@@ -35,6 +35,7 @@ function ThemeShowcase() {
             { name: 'Card', cls: 'bg-card border border-border' },
             { name: 'Muted', cls: 'bg-muted' },
             { name: 'Accent', cls: 'bg-accent' },
+            { name: 'Selected', cls: 'bg-selected' },
             { name: 'Primary', cls: 'bg-primary' },
             { name: 'Secondary', cls: 'bg-secondary' },
             { name: 'Destructive', cls: 'bg-destructive' },
@@ -60,6 +61,7 @@ function ThemeShowcase() {
           <Button variant="outline">Outline</Button>
           <Button variant="ghost">Ghost</Button>
           <Button variant="destructive">Destructive</Button>
+          <Button variant="link">Link</Button>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge>Default</Badge>
