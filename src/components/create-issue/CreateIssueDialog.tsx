@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { CheckIcon, ChevronRightIcon, EllipsisIcon, ExpandIcon, PaperclipIcon, PlayIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
@@ -55,25 +56,14 @@ function FieldPicker({ options, selected, multi = false, onSelect, children }: F
   )
 }
 
-interface AttributeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode
-}
+type AttributeButtonProps = React.ComponentProps<typeof Button>
 
-function AttributeButton({ children, className, ...props }: AttributeButtonProps) {
-  return (
-    <button
-      className={cn(
-        'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-border',
-        'text-xs text-muted-foreground bg-transparent',
-        'hover:border-border/80 hover:text-foreground transition-colors',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </button>
+const AttributeButton = React.forwardRef<HTMLButtonElement, AttributeButtonProps>(
+  ({ className, ...props }, ref) => (
+    <Button ref={ref} variant="attribute" size="pill" className={className} {...props} />
   )
-}
+)
+AttributeButton.displayName = 'AttributeButton'
 
 export interface CreateIssueDialogProps {
   open: boolean
@@ -169,15 +159,18 @@ export function CreateIssueDialog({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
-                <ExpandIcon className="h-3.5 w-3.5" />
-              </button>
-              <button
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Expand">
+                <ExpandIcon />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
                 onClick={() => onOpenChange(false)}
-                className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                aria-label="Close"
               >
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
+                <XIcon />
+              </Button>
             </div>
           </div>
 
@@ -260,31 +253,31 @@ export function CreateIssueDialog({
               </AttributeButton>
             </FieldPicker>
 
-            <button className="flex items-center justify-center h-7 w-7 rounded-full border border-border text-muted-foreground hover:border-border/80 hover:text-foreground transition-colors">
-              <PlayIcon className="h-3.5 w-3.5" />
-            </button>
-            <button className="flex items-center justify-center h-7 w-7 rounded-full border border-border text-muted-foreground hover:border-border/80 hover:text-foreground transition-colors">
-              <EllipsisIcon className="h-3.5 w-3.5" />
-            </button>
+            <Button variant="attribute" size="pill-icon" aria-label="Play">
+              <PlayIcon />
+            </Button>
+            <Button variant="attribute" size="pill-icon" aria-label="More">
+              <EllipsisIcon />
+            </Button>
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
-              <PaperclipIcon className="h-4 w-4" />
-            </button>
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Attach">
+              <PaperclipIcon />
+            </Button>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <Switch checked={createMore} onCheckedChange={setCreateMore} />
                 <span className="text-sm text-muted-foreground">Create more</span>
               </div>
-              <button
+              <Button
+                size="pill-lg"
                 onClick={handleCreate}
                 disabled={!values.title.trim()}
-                className="px-4 py-1.5 rounded-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium text-white transition-colors"
               >
                 Create issue
-              </button>
+              </Button>
             </div>
           </div>
         </DialogPrimitive.Content>

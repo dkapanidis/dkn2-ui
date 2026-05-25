@@ -19,12 +19,18 @@ const buttonVariants = cva(
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
+        attribute:
+          'border border-border bg-transparent text-muted-foreground hover:border-border/80 hover:text-foreground',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
         sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
+        'icon-sm': 'size-7 rounded-md [&_svg:not([class*=size-])]:size-3.5',
+        pill: 'h-7 px-2.5 rounded-full gap-1.5 text-xs [&_svg:not([class*=size-])]:size-3.5',
+        'pill-icon': 'size-7 rounded-full [&_svg:not([class*=size-])]:size-3.5',
+        'pill-lg': 'h-8 px-4 rounded-full text-sm',
       },
     },
     defaultVariants: {

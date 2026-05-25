@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import * as React from 'react'
+import { Button } from '../src/components/ui/button'
 import { CreateIssueDialog, defaultIssueSchema, type IssueCreateValues } from '../src/components/create-issue'
 import { Toaster } from '../src/components/ui/sonner'
 import { toast } from 'sonner'
@@ -22,12 +23,7 @@ function CreateIssueDialogDemo() {
     <div className="flex h-full w-full items-center justify-center bg-background">
       <Toaster richColors />
       <div className="flex flex-col items-center gap-4">
-        <button
-          onClick={() => setOpen(true)}
-          className="px-4 py-2 rounded-md bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white transition-colors"
-        >
-          Create issue
-        </button>
+        <Button onClick={() => setOpen(true)}>Create issue</Button>
         <p className="text-xs text-muted-foreground">or press <kbd className="px-1.5 py-0.5 rounded border border-border font-mono text-xs">C</kbd></p>
       </div>
       <CreateIssueDialog
@@ -72,12 +68,7 @@ export const OpenByDefault: StoryObj = {
         />
         {!open && (
           <div className="flex h-full items-center justify-center">
-            <button
-              onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-md bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white"
-            >
-              Reopen
-            </button>
+            <Button onClick={() => setOpen(true)}>Reopen</Button>
           </div>
         )}
       </div>
