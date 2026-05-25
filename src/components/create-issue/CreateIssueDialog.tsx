@@ -1,5 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { CheckIcon, ChevronRightIcon, EllipsisIcon, ExpandIcon, PaperclipIcon, PlayIcon, XIcon } from 'lucide-react'
+import { CheckIcon, ChevronRightIcon, EllipsisIcon, ExpandIcon, MinimizeIcon, PaperclipIcon, PlayIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog'
@@ -91,11 +91,13 @@ export function CreateIssueDialog({
 }: CreateIssueDialogProps) {
   const [values, setValues] = React.useState<IssueCreateValues>({ ...defaultIssueValues, ...defaultValues })
   const [createMore, setCreateMore] = React.useState(false)
+  const [fullscreen, setFullscreen] = React.useState(false)
   const titleRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     if (open) {
       setValues({ ...defaultIssueValues, ...defaultValues })
+      setFullscreen(false)
       setTimeout(() => titleRef.current?.focus(), 50)
     }
   }, [open])
@@ -139,10 +141,13 @@ export function CreateIssueDialog({
         <DialogPrimitive.Content
           onOpenAutoFocus={e => e.preventDefault()}
           className={cn(
-            'fixed left-[50%] top-[50%] z-50 w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] rounded-xl border border-border bg-card shadow-2xl outline-none',
-            'duration-200',
+            'fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] z-50 w-full border border-border bg-card shadow-2xl outline-none flex flex-col',
+            'transition-[max-width,min-height,border-radius] duration-300 ease-out',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
             'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+            fullscreen
+              ? 'max-w-[100vw] min-h-screen rounded-none'
+              : 'max-w-2xl min-h-0 rounded-xl',
           )}
           onKeyDown={handleKeyDown}
         >
@@ -159,8 +164,14 @@ export function CreateIssueDialog({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Expand">
-                <ExpandIcon />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setFullscreen(f => !f)}
+                aria-label={fullscreen ? 'Exit fullscreen' : 'Expand'}
+              >
+                {fullscreen ? <MinimizeIcon /> : <ExpandIcon />}
               </Button>
               <Button
                 variant="ghost"
@@ -175,7 +186,7 @@ export function CreateIssueDialog({
           </div>
 
           {/* Body */}
-          <div className="px-6 pt-5 pb-4 flex flex-col gap-3 min-h-48">
+          <div className={cn('px-6 pt-5 pb-4 flex flex-col gap-3', fullscreen ? 'flex-1 min-h-0' : 'min-h-48')}>
             <input
               ref={titleRef}
               value={values.title}
@@ -188,7 +199,10 @@ export function CreateIssueDialog({
               onChange={e => setValues(v => ({ ...v, description: e.target.value }))}
               placeholder="Add description..."
               rows={3}
-              className="w-full bg-transparent text-sm text-muted-foreground placeholder:text-muted-foreground/40 outline-none border-none resize-none"
+              className={cn(
+                'w-full bg-transparent text-sm text-muted-foreground placeholder:text-muted-foreground/40 outline-none border-none resize-none',
+                fullscreen && 'flex-1',
+              )}
             />
           </div>
 
