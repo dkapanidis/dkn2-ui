@@ -1,10 +1,9 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { CheckIcon, ChevronRightIcon, EllipsisIcon, ExpandIcon, MinimizeIcon, PaperclipIcon, PlayIcon, XIcon } from 'lucide-react'
+import { CheckIcon, EllipsisIcon, ExpandIcon, MinimizeIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import type { IssueCreateSchema, IssueCreateValues, IssueFieldOption, IssuePriority, IssueStatus } from './types'
 
@@ -71,6 +70,7 @@ export interface CreateIssueDialogProps {
   schema: IssueCreateSchema
   onCreate: (values: IssueCreateValues) => void
   defaultValues?: Partial<IssueCreateValues>
+  header?: React.ReactNode
 }
 
 const defaultIssueValues: IssueCreateValues = {
@@ -88,9 +88,9 @@ export function CreateIssueDialog({
   schema,
   onCreate,
   defaultValues,
+  header = 'Create Issue',
 }: CreateIssueDialogProps) {
   const [values, setValues] = React.useState<IssueCreateValues>({ ...defaultIssueValues, ...defaultValues })
-  const [createMore, setCreateMore] = React.useState(false)
   const [fullscreen, setFullscreen] = React.useState(false)
   const titleRef = React.useRef<HTMLInputElement>(null)
 
@@ -105,12 +105,7 @@ export function CreateIssueDialog({
   const handleCreate = () => {
     if (!values.title.trim()) return
     onCreate({ ...values, title: values.title.trim(), description: values.description.trim() })
-    if (createMore) {
-      setValues({ ...defaultIssueValues, ...defaultValues })
-      setTimeout(() => titleRef.current?.focus(), 50)
-    } else {
-      onOpenChange(false)
-    }
+    onOpenChange(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -153,16 +148,7 @@ export function CreateIssueDialog({
         >
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-1">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-accent border border-border">
-                <div className="h-3.5 w-3.5 rounded-sm bg-green-600 shrink-0" />
-                <span className="text-xs font-medium text-foreground">RAY</span>
-              </div>
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-accent border border-border">
-                <span className="text-xs">Template</span>
-              </div>
-            </div>
+            <div className="flex-1 text-sm font-medium text-foreground">{header}</div>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -232,14 +218,6 @@ export function CreateIssueDialog({
               </AttributeButton>
             </FieldPicker>
 
-            {/* Assignee — static display only */}
-            <AttributeButton>
-              <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center shrink-0">
-                <span className="text-[9px] font-bold text-white">DK</span>
-              </div>
-              dimitris.kapanidis
-            </AttributeButton>
-
             {/* Project */}
             <FieldPicker
               options={schema.projects}
@@ -266,33 +244,17 @@ export function CreateIssueDialog({
                 {selectedLabels.length > 0 ? selectedLabels.map(l => l.label).join(', ') : 'Labels'}
               </AttributeButton>
             </FieldPicker>
-
-            <Button variant="attribute" size="pill-icon" aria-label="Play">
-              <PlayIcon />
-            </Button>
-            <Button variant="attribute" size="pill-icon" aria-label="More">
-              <EllipsisIcon />
-            </Button>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" aria-label="Attach">
-              <PaperclipIcon />
+          <div className="flex items-center justify-end px-4 py-3 border-t border-border">
+            <Button
+              size="pill-lg"
+              onClick={handleCreate}
+              disabled={!values.title.trim()}
+            >
+              Create issue
             </Button>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Switch checked={createMore} onCheckedChange={setCreateMore} />
-                <span className="text-sm text-muted-foreground">Create more</span>
-              </div>
-              <Button
-                size="pill-lg"
-                onClick={handleCreate}
-                disabled={!values.title.trim()}
-              >
-                Create issue
-              </Button>
-            </div>
           </div>
         </DialogPrimitive.Content>
       </DialogPortal>
