@@ -29,6 +29,8 @@ export interface AttributeButtonProps {
   align?: 'start' | 'center' | 'end'
   /** Size of the trigger button. */
   size?: React.ComponentProps<typeof Button>['size']
+  /** Tab index for the trigger button. Pass -1 to keep it out of the tab order (e.g. in table rows). */
+  tabIndex?: number
   className?: string
 }
 
@@ -42,6 +44,7 @@ export function AttributeButton({
   contentWidth = 'w-44',
   align = 'start',
   size = 'pill',
+  tabIndex,
   className,
 }: AttributeButtonProps) {
   const [open, setOpen] = React.useState(false)
@@ -59,6 +62,7 @@ export function AttributeButton({
         <Button
           variant="attribute"
           size={size}
+          tabIndex={tabIndex}
           className={className}
           // Prevent row-level handlers (selection, drag) from firing when used in a table cell.
           onClick={e => e.stopPropagation()}
@@ -73,6 +77,9 @@ export function AttributeButton({
         align={align}
         className={cn('p-1', contentWidth)}
         onClick={e => e.stopPropagation()}
+        // When the trigger is kept out of the tab order, don't restore focus to it on close
+        // (avoids leaving a focus ring on a button that shouldn't be focusable).
+        onCloseAutoFocus={tabIndex === -1 ? e => e.preventDefault() : undefined}
       >
         {options.map(opt => {
           const isSelected = selected.includes(opt.value)

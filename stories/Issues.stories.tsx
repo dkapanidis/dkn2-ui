@@ -142,6 +142,7 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Label"
         placeholderIcon={iconPlaceholder('L')}
+        tabIndex={-1}
       />
     ),
     size: 160,
@@ -162,6 +163,7 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Priority"
         placeholderIcon={<EllipsisIcon className="h-3.5 w-3.5" />}
+        tabIndex={-1}
       />
     ),
     size: 120,
@@ -179,6 +181,7 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Project"
         placeholderIcon={iconPlaceholder('P')}
+        tabIndex={-1}
       />
     ),
     size: 120,
