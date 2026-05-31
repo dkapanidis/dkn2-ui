@@ -1,68 +1,11 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { CheckIcon, EllipsisIcon, ExpandIcon, MinimizeIcon, XIcon } from 'lucide-react'
+import { EllipsisIcon, ExpandIcon, MinimizeIcon, XIcon } from 'lucide-react'
 import * as React from 'react'
+import { AttributeButton } from '@/components/attribute-button'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import type { IssueCreateSchema, IssueCreateValues, IssueFieldOption, IssuePriority, IssueStatus } from './types'
-
-interface FieldPickerProps {
-  options: IssueFieldOption[]
-  selected: string[]
-  multi?: boolean
-  onSelect: (value: string) => void
-  children: React.ReactNode
-}
-
-function FieldPicker({ options, selected, multi = false, onSelect, children }: FieldPickerProps) {
-  const [open, setOpen] = React.useState(false)
-
-  const handleSelect = (value: string) => {
-    onSelect(value)
-    if (!multi) setOpen(false)
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="start" className="w-44 p-1">
-        {options.map(opt => {
-          const isSelected = selected.includes(opt.value)
-          return (
-            <button
-              key={opt.value}
-              onClick={() => handleSelect(opt.value)}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
-                'hover:bg-accent hover:text-accent-foreground',
-                isSelected && 'text-foreground font-medium'
-              )}
-            >
-              {multi && (
-                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                  {isSelected && <CheckIcon className="h-3 w-3" />}
-                </span>
-              )}
-              {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-              <span className="flex-1 text-left truncate">{opt.label}</span>
-              {!multi && isSelected && <CheckIcon className="h-3 w-3 shrink-0 text-muted-foreground" />}
-            </button>
-          )
-        })}
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-type AttributeButtonProps = React.ComponentProps<typeof Button>
-
-const AttributeButton = React.forwardRef<HTMLButtonElement, AttributeButtonProps>(
-  ({ className, ...props }, ref) => (
-    <Button ref={ref} variant="attribute" size="pill" className={className} {...props} />
-  )
-)
-AttributeButton.displayName = 'AttributeButton'
+import type { IssueCreateSchema, IssueCreateValues, IssuePriority, IssueStatus } from './types'
 
 export interface CreateIssueDialogProps {
   open: boolean
@@ -112,11 +55,6 @@ export function CreateIssueDialog({
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleCreate()
     if (e.key === 'Escape') onOpenChange(false)
   }
-
-  const statusOption = schema.statuses.find(s => s.value === values.status)
-  const priorityOption = schema.priorities.find(p => p.value === values.priority)
-  const projectOption = schema.projects.find(p => p.value === values.project)
-  const selectedLabels = schema.labels.filter(l => values.labels.includes(l.value))
 
   const handleStatusSelect = (value: string) => setValues(v => ({ ...v, status: value as IssueStatus }))
   const handlePrioritySelect = (value: string) =>
@@ -195,55 +133,40 @@ export function CreateIssueDialog({
           {/* Attributes row */}
           <div className="px-6 py-3 flex items-center gap-1.5 flex-wrap border-t border-border/50">
             {/* Status */}
-            <FieldPicker
+            <AttributeButton
               options={schema.statuses}
               selected={[values.status]}
               onSelect={handleStatusSelect}
-            >
-              <AttributeButton>
-                {statusOption?.icon}
-                {statusOption?.label ?? 'Backlog'}
-              </AttributeButton>
-            </FieldPicker>
+              placeholder="Backlog"
+            />
 
             {/* Priority */}
-            <FieldPicker
+            <AttributeButton
               options={schema.priorities}
               selected={values.priority ? [values.priority] : []}
               onSelect={handlePrioritySelect}
-            >
-              <AttributeButton>
-                {priorityOption?.icon ?? <EllipsisIcon className="h-3.5 w-3.5" />}
-                {priorityOption?.label ?? 'Priority'}
-              </AttributeButton>
-            </FieldPicker>
+              placeholder="Priority"
+              placeholderIcon={<EllipsisIcon className="h-3.5 w-3.5" />}
+            />
 
             {/* Project */}
-            <FieldPicker
+            <AttributeButton
               options={schema.projects}
               selected={values.project ? [values.project] : []}
               onSelect={handleProjectSelect}
-            >
-              <AttributeButton>
-                {projectOption?.icon ?? <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold border border-current rounded-sm">P</span>}
-                {projectOption?.label ?? 'Project'}
-              </AttributeButton>
-            </FieldPicker>
+              placeholder="Project"
+              placeholderIcon={<span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold border border-current rounded-sm">P</span>}
+            />
 
             {/* Labels */}
-            <FieldPicker
+            <AttributeButton
               options={schema.labels}
               selected={values.labels}
               multi
               onSelect={handleLabelToggle}
-            >
-              <AttributeButton>
-                {selectedLabels.length > 0
-                  ? selectedLabels.map(l => l.icon)
-                  : <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold border border-current rounded-sm">L</span>}
-                {selectedLabels.length > 0 ? selectedLabels.map(l => l.label).join(', ') : 'Labels'}
-              </AttributeButton>
-            </FieldPicker>
+              placeholder="Labels"
+              placeholderIcon={<span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold border border-current rounded-sm">L</span>}
+            />
           </div>
 
           {/* Footer */}

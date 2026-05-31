@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   CircleDashedIcon,
   CircleDotDashedIcon,
+  EllipsisIcon,
   FolderIcon,
   InboxIcon,
   LayersIcon,
@@ -29,6 +30,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 import * as React from 'react'
+import { AttributeButton, type AttributeOption } from '../src/components/attribute-button'
 import { CreateIssueDialog, defaultIssueSchema, type IssueCreateValues } from '../src/components/create-issue'
 import { DataTable, FilterBar, FilterMenu, type GroupConfig, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
@@ -62,8 +64,35 @@ const issues: Issue[] = [
   { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'cancelled', labels: ['UI'], createdAt: 'Apr 2025', updatedAt: 'May 3' },
 ]
 
-const labelColor = (label: string) =>
-  label === 'Improvement' ? 'bg-green-500' : label === 'UI' ? 'bg-blue-500' : 'bg-muted-foreground'
+const statusOptions: AttributeOption[] = [
+  { value: 'backlog', label: 'Backlog', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground/60" /> },
+  { value: 'todo', label: 'Todo', icon: <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground" /> },
+  { value: 'in-progress', label: 'In Progress', icon: <CircleDotDashedIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+  { value: 'done', label: 'Done', icon: <CircleDotDashedIcon className="h-3.5 w-3.5 text-green-500" /> },
+  { value: 'cancelled', label: 'Cancelled', icon: <CircleDotDashedIcon className="h-3.5 w-3.5 text-red-500/60" /> },
+]
+
+const priorityOptions: AttributeOption[] = [
+  { value: 'high', label: 'High', icon: <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500" /> },
+  { value: 'medium', label: 'Medium', icon: <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500" /> },
+  { value: 'low', label: 'Low', icon: <ArrowDownIcon className="h-3.5 w-3.5 text-blue-400" /> },
+]
+
+const labelOptions: AttributeOption[] = [
+  { value: 'Improvement', label: 'Improvement', icon: <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> },
+  { value: 'UI', label: 'UI', icon: <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> },
+]
+
+const projectOptions: AttributeOption[] = [
+  { value: 'PI06', label: 'PI06', icon: <TargetIcon className="h-3.5 w-3.5 text-muted-foreground" /> },
+]
+
+const iconPlaceholder = (letter: string) => (
+  <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold border border-current rounded-sm">{letter}</span>
+)
+
+const toggleValue = (arr: string[], value: string) =>
+  arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
 
 function StatusIcon({ status }: { status: Issue['status'] }) {
   if (status === 'in-progress') return <CircleDotDashedIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
@@ -73,7 +102,9 @@ function StatusIcon({ status }: { status: Issue['status'] }) {
   return <CircleDashedIcon className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
 }
 
-const issueColumns: ColumnDef<Issue>[] = [
+type UpdateIssue = (id: string, updater: (issue: Issue) => Issue) => void
+
+const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
   {
     id: 'code',
     accessorKey: 'code',
@@ -101,51 +132,56 @@ const issueColumns: ColumnDef<Issue>[] = [
     id: 'label',
     accessorKey: 'labels',
     header: 'Label',
-    cell: ({ row }) =>
-      row.original.labels && row.original.labels.length > 0 ? (
-        <div className="flex items-center gap-2">
-          {row.original.labels.map(label => (
-            <div key={label} className="flex items-center gap-1">
-              <span className={cn('h-1.5 w-1.5 rounded-full', labelColor(label))} />
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-          ))}
-        </div>
-      ) : null,
-    size: 140,
+    cell: ({ row }) => (
+      <AttributeButton
+        options={labelOptions}
+        selected={row.original.labels ?? []}
+        multi
+        onSelect={value =>
+          onUpdate(row.original.id, i => ({ ...i, labels: toggleValue(i.labels ?? [], value) }))
+        }
+        placeholder="Label"
+        placeholderIcon={iconPlaceholder('L')}
+      />
+    ),
+    size: 160,
   },
   {
     id: 'priority',
     accessorKey: 'priority',
     header: 'Priority',
-    cell: ({ row }) => {
-      const p = row.original.priority
-      if (!p) return null
-      return (
-        <div className="flex items-center gap-0.5">
-          {p === 'high'
-            ? <ChevronsUpIcon className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            : p === 'medium'
-            ? <ArrowUpIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-            : <ArrowDownIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />}
-          <span className="text-xs text-muted-foreground">{p === 'high' ? 'H' : p === 'medium' ? 'M' : 'L'}</span>
-        </div>
-      )
-    },
-    size: 36,
+    cell: ({ row }) => (
+      <AttributeButton
+        options={priorityOptions}
+        selected={row.original.priority ? [row.original.priority] : []}
+        onSelect={value =>
+          onUpdate(row.original.id, i => ({
+            ...i,
+            priority: i.priority === value ? undefined : (value as Issue['priority']),
+          }))
+        }
+        placeholder="Priority"
+        placeholderIcon={<EllipsisIcon className="h-3.5 w-3.5" />}
+      />
+    ),
+    size: 120,
   },
   {
     id: 'project',
     accessorKey: 'project',
     header: 'Project',
-    cell: ({ row }) =>
-      row.original.project ? (
-        <div className="flex items-center gap-1">
-          <TargetIcon className="h-3 w-3 text-muted-foreground/60 shrink-0" />
-          <span className="text-xs text-muted-foreground/60">{row.original.project}</span>
-        </div>
-      ) : null,
-    size: 72,
+    cell: ({ row }) => (
+      <AttributeButton
+        options={projectOptions}
+        selected={row.original.project ? [row.original.project] : []}
+        onSelect={value =>
+          onUpdate(row.original.id, i => ({ ...i, project: i.project === value ? undefined : value }))
+        }
+        placeholder="Project"
+        placeholderIcon={iconPlaceholder('P')}
+      />
+    ),
+    size: 120,
   },
   {
     id: 'createdAt',
@@ -450,13 +486,18 @@ function IssuesPage() {
     setGroupField('project')
   }
 
+  const updateIssue = React.useCallback<UpdateIssue>(
+    (id, updater) => setData(prev => prev.map(issue => (issue.id === id ? updater(issue) : issue))),
+    []
+  )
+
   const filteredColumns = React.useMemo(
-    () => issueColumns.filter(col => {
+    () => getIssueColumns(updateIssue).filter(col => {
       const id = col.id as ToggleableColumn
       if (!toggleableColumns.includes(id as ToggleableColumn)) return true
       return visibleColumns.has(id)
     }),
-    [visibleColumns]
+    [visibleColumns, updateIssue]
   )
 
   const tableSorting = React.useMemo(
