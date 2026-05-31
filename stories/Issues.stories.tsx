@@ -42,8 +42,7 @@ interface Issue {
   code: string
   title: string
   status: 'backlog' | 'todo' | 'in-progress' | 'done' | 'cancelled'
-  label?: string
-  labelColor?: string
+  labels?: string[]
   priority?: 'low' | 'medium' | 'high'
   createdAt: string
   updatedAt: string
@@ -53,15 +52,18 @@ interface Issue {
 const issues: Issue[] = [
   { id: '112', code: 'ACM-112', title: 'Onboarding flow: add welcome email sequence for new signups', status: 'todo', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '140', code: 'ACM-140', title: 'Investigate memory leak in background job processor', status: 'in-progress', priority: 'high', createdAt: 'Feb 15', updatedAt: 'May 1', project: 'PI06' },
-  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 1', project: 'PI06' },
-  { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'todo', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '74', code: 'ACM-74', title: 'Add two-factor authentication support', status: 'in-progress', labels: ['Improvement', 'UI'], priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 1', project: 'PI06' },
+  { id: '110', code: 'ACM-110', title: 'Redesign dashboard widgets to support custom layouts', status: 'todo', labels: ['UI'], createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '111', code: 'ACM-111', title: 'Export reports to CSV and PDF formats', status: 'backlog', createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '109', code: 'ACM-109', title: 'Set up end-to-end tests for the checkout flow', status: 'done', createdAt: 'Jan 23', updatedAt: 'May 1' },
-  { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'in-progress', label: 'Improvement', labelColor: 'green', priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
-  { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', label: 'UI', labelColor: 'blue', createdAt: 'Jan 23', updatedAt: 'May 1' },
+  { id: '73', code: 'ACM-73', title: 'Migrate search to use full-text indexing', status: 'in-progress', labels: ['Improvement'], priority: 'medium', createdAt: 'Apr 2025', updatedAt: 'May 2' },
+  { id: '113', code: 'ACM-113', title: 'Add dark mode support across all settings pages', status: 'backlog', labels: ['UI'], createdAt: 'Jan 23', updatedAt: 'May 1' },
   { id: '76', code: 'ACM-76', title: 'Implement rate limiting on the public API', status: 'todo', priority: 'high', createdAt: 'Apr 2025', updatedAt: 'May 3', project: 'PI06' },
-  { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'cancelled', label: 'UI', labelColor: 'blue', createdAt: 'Apr 2025', updatedAt: 'May 3' },
+  { id: '75', code: 'ACM-75', title: 'Consolidate notification preferences into a single screen', status: 'cancelled', labels: ['UI'], createdAt: 'Apr 2025', updatedAt: 'May 3' },
 ]
+
+const labelColor = (label: string) =>
+  label === 'Improvement' ? 'bg-green-500' : label === 'UI' ? 'bg-blue-500' : 'bg-muted-foreground'
 
 function StatusIcon({ status }: { status: Issue['status'] }) {
   if (status === 'in-progress') return <CircleDotDashedIcon className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
@@ -97,16 +99,20 @@ const issueColumns: ColumnDef<Issue>[] = [
   },
   {
     id: 'label',
-    accessorKey: 'label',
+    accessorKey: 'labels',
     header: 'Label',
     cell: ({ row }) =>
-      row.original.label ? (
-        <div className="flex items-center gap-1">
-          <span className={cn('h-1.5 w-1.5 rounded-full', row.original.labelColor === 'green' ? 'bg-green-500' : 'bg-blue-500')} />
-          <span className="text-xs text-muted-foreground">{row.original.label}</span>
+      row.original.labels && row.original.labels.length > 0 ? (
+        <div className="flex items-center gap-2">
+          {row.original.labels.map(label => (
+            <div key={label} className="flex items-center gap-1">
+              <span className={cn('h-1.5 w-1.5 rounded-full', labelColor(label))} />
+              <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+          ))}
         </div>
       ) : null,
-    size: 100,
+    size: 140,
   },
   {
     id: 'priority',
@@ -191,7 +197,7 @@ const issueFilterDefs: TableFilterDef<Issue>[] = [
       { value: 'Improvement', label: 'Improvement', icon: <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> },
       { value: 'UI', label: 'UI', icon: <span className="h-1.5 w-1.5 rounded-full bg-blue-500 inline-block" /> },
     ],
-    filterFn: (row, values) => row.label !== undefined && values.includes(row.label),
+    filterFn: (row, values) => row.labels?.some(label => values.includes(label)) ?? false,
   },
   {
     id: 'project',
@@ -510,8 +516,7 @@ function IssuesPage() {
       title: values.title,
       status: values.status,
       priority: values.priority,
-      label: values.labels[0],
-      labelColor: values.labels[0] === 'Improvement' ? 'green' : values.labels[0] === 'UI' ? 'blue' : undefined,
+      labels: values.labels,
       project: values.project,
       createdAt: 'May 25',
       updatedAt: 'May 25',
