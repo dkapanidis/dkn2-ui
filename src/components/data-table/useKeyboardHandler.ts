@@ -16,6 +16,7 @@ interface UseKeyboardHandlerParams<TData> {
   setActiveRowSource: (source: 'keyboard' | 'mouse') => void
   suppressMouseRef: React.MutableRefObject<boolean>
   setContextMenu: (menu: null) => void
+  onRowOpen?: (row: TData) => void
 }
 
 export function useKeyboardHandler<TData>({
@@ -32,6 +33,7 @@ export function useKeyboardHandler<TData>({
   setActiveRowSource,
   suppressMouseRef,
   setContextMenu,
+  onRowOpen,
 }: UseKeyboardHandlerParams<TData>) {
   const shiftAnchorRef = React.useRef<number | null>(null)
 
@@ -118,7 +120,7 @@ export function useKeyboardHandler<TData>({
           selection[rows[i].id] = true
         }
         table.setRowSelection(selection)
-      } else if ((e.key === 'ArrowDown' && !e.altKey) || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
+      } else if ((e.key === 'ArrowDown' && !e.altKey) || (e.key === 'j' && !e.metaKey && !e.ctrlKey && !e.altKey) || (e.key === 'Tab' && !e.shiftKey && activeRowIndex !== null && activeRowIndex !== rows.length - 1)) {
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
@@ -126,7 +128,7 @@ export function useKeyboardHandler<TData>({
         setActiveRowIndex((prev) =>
           prev === null ? 0 : Math.min(prev + 1, rows.length - 1)
         )
-      } else if ((e.key === 'ArrowUp' && !e.altKey) || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
+      } else if ((e.key === 'ArrowUp' && !e.altKey) || (e.key === 'k' && !e.metaKey && !e.ctrlKey && !e.altKey) || (e.key === 'Tab' && e.shiftKey && activeRowIndex !== null && activeRowIndex !== 0)) {
         e.preventDefault()
         suppressMouseRef.current = true
         setActiveRowSource('keyboard')
@@ -138,6 +140,10 @@ export function useKeyboardHandler<TData>({
         e.preventDefault()
         suppressMouseRef.current = true
         rows[activeRowIndex]?.toggleSelected()
+      } else if (e.key === 'Enter' && activeRowIndex !== null && onRowOpen) {
+        e.preventDefault()
+        const row = rows[activeRowIndex]
+        if (row) onRowOpen(row.original)
       } else if (e.key === 'Enter' && activeRowIndex !== null && rowActions?.length && effectiveRows.length) {
         e.preventDefault()
         setActionsOpen(true)
@@ -183,5 +189,5 @@ export function useKeyboardHandler<TData>({
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowActions, rows, activeRowIndex, selectedCount, contextMenu, table])
+  }, [rowActions, rows, activeRowIndex, selectedCount, contextMenu, table, onRowOpen])
 }

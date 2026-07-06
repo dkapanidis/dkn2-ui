@@ -114,6 +114,7 @@ export function DataTable<TData, TValue>({
   onGroupChange,
   lockMove = false,
   onSwitchToManual,
+  onRowOpen,
 }: DataTableProps<TData, TValue>) {
   const isControlled = controlledActiveFilters !== undefined
   const showAll = pageSize === 'all'
@@ -506,6 +507,7 @@ export function DataTable<TData, TValue>({
     setActiveRowSource,
     suppressMouseRef,
     setContextMenu,
+    onRowOpen,
   })
 
   React.useEffect(() => {
@@ -703,9 +705,14 @@ export function DataTable<TData, TValue>({
       setRowSelection(prev => ({ ...prev, ...updates }))
     } else {
       anchorRowIndexRef.current = i
-      toggleSelected()
+      if (onRowOpen) {
+        const row = visibleRowsRef.current[i]
+        if (row) onRowOpen(row.original)
+      } else {
+        toggleSelected()
+      }
     }
-  }, [])
+  }, [onRowOpen])
 
   const handleContextMenu = (e: React.MouseEvent, rowIndex: number) => {
     if (!rowActions?.length) return

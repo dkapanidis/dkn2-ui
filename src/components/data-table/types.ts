@@ -78,4 +78,10 @@ export interface DataTableProps<TData, TValue> {
   lockMove?: boolean
   /** Called when the user initiates a reorder while sorting is active and lockMove is false. */
   onSwitchToManual?: () => void
+  /**
+   * Called when a row is opened (click or Enter). When provided, plain click
+   * opens the row instead of toggling selection — selection stays available
+   * via checkbox, shift-click, and the x/space shortcuts.
+   */
+  onRowOpen?: (row: TData) => void
 }

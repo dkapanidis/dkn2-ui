@@ -31,6 +31,13 @@ export interface AttributeButtonProps {
   size?: React.ComponentProps<typeof Button>['size']
   /** Tab index for the trigger button. Pass -1 to keep it out of the tab order (e.g. in table rows). */
   tabIndex?: number
+  /**
+   * Show a search input with keyboard navigation (arrows to move, space to
+   * select, enter to choose and close) — same interaction as the filter menu.
+   */
+  searchable?: boolean
+  /** Placeholder for the search input when `searchable` is set. */
+  searchPlaceholder?: string
   className?: string
 }
 
@@ -45,15 +52,57 @@ export function AttributeButton({
   align = 'start',
   size = 'pill',
   tabIndex,
+  searchable = false,
+  searchPlaceholder = 'Filter...',
   className,
 }: AttributeButtonProps) {
   const [open, setOpen] = React.useState(false)
+  const [search, setSearch] = React.useState('')
+  const [highlighted, setHighlighted] = React.useState(0)
   const selectedOptions = options.filter(o => selected.includes(o.value))
   const hasSelection = selectedOptions.length > 0
+
+  const filteredOptions = React.useMemo(
+    () =>
+      searchable
+        ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+        : options,
+    [options, searchable, search]
+  )
+
+  React.useEffect(() => {
+    if (open) {
+      setSearch('')
+      setHighlighted(0)
+    }
+  }, [open])
+
+  React.useEffect(() => {
+    setHighlighted(0)
+  }, [search])
 
   const handleSelect = (value: string) => {
     onSelect(value)
     if (!multi) setOpen(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!searchable) return
+    const n = filteredOptions.length
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault()
+      if (n) setHighlighted(prev => (prev + 1) % n)
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault()
+      if (n) setHighlighted(prev => (prev <= 0 ? n - 1 : prev - 1))
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault()
+      const opt = filteredOptions[highlighted]
+      if (opt) {
+        onSelect(opt.value)
+        if (e.key === 'Enter') setOpen(false)
+      }
+    }
   }
 
   return (
@@ -75,21 +124,40 @@ export function AttributeButton({
       </PopoverTrigger>
       <PopoverContent
         align={align}
-        className={cn('p-1', contentWidth)}
+        className={cn('p-0', contentWidth)}
         onClick={e => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
         // When the trigger is kept out of the tab order, don't restore focus to it on close
         // (avoids leaving a focus ring on a button that shouldn't be focusable).
         onCloseAutoFocus={tabIndex === -1 ? e => e.preventDefault() : undefined}
       >
-        {options.map(opt => {
+        {searchable && (
+          <div className="border-b border-white/10 px-3 py-2">
+            <input
+              autoFocus
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+        )}
+        <div className="p-1 max-h-64 overflow-y-auto">
+        {searchable && filteredOptions.length === 0 && (
+          <p className="py-4 text-center text-xs text-muted-foreground">No options.</p>
+        )}
+        {filteredOptions.map((opt, i) => {
           const isSelected = selected.includes(opt.value)
           return (
             <button
               key={opt.value}
               onClick={() => handleSelect(opt.value)}
+              onMouseEnter={searchable ? () => setHighlighted(i) : undefined}
               className={cn(
                 'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none',
-                'hover:bg-accent hover:text-accent-foreground',
+                searchable && i === highlighted
+                  ? 'bg-accent text-accent-foreground'
+                  : 'hover:bg-accent hover:text-accent-foreground',
                 isSelected && 'text-foreground font-medium'
               )}
             >
@@ -104,6 +172,7 @@ export function AttributeButton({
             </button>
           )
         })}
+        </div>
       </PopoverContent>
     </Popover>
   )

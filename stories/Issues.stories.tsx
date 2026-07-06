@@ -8,6 +8,8 @@ import {
   ChevronsUpIcon,
   BookmarkIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronUpIcon,
   CircleDashedIcon,
   CircleDotDashedIcon,
   EllipsisIcon,
@@ -27,12 +29,13 @@ import {
   StarIcon,
   TableIcon,
   TargetIcon,
+  TrashIcon,
   UsersIcon,
 } from 'lucide-react'
 import * as React from 'react'
 import { AttributeButton, type AttributeOption } from '../src/components/attribute-button'
 import { CreateIssueDialog, defaultIssueSchema, type IssueCreateValues } from '../src/components/create-issue'
-import { DataTable, FilterBar, FilterMenu, type GroupConfig, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
+import { DataTable, FilterBar, FilterMenu, type GroupConfig, type RowAction, type TableActiveFilter, type TableFilterDef } from '../src/components/data-table'
 import { SideMenu, type NavItem } from '../src/components/side-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '../src/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../src/components/ui/select'
@@ -142,6 +145,8 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Label"
         placeholderIcon={iconPlaceholder('L')}
+        searchable
+        searchPlaceholder="Add label..."
         tabIndex={-1}
       />
     ),
@@ -163,6 +168,8 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Priority"
         placeholderIcon={<EllipsisIcon className="h-3.5 w-3.5" />}
+        searchable
+        searchPlaceholder="Set priority..."
         tabIndex={-1}
       />
     ),
@@ -181,6 +188,8 @@ const getIssueColumns = (onUpdate: UpdateIssue): ColumnDef<Issue>[] => [
         }
         placeholder="Project"
         placeholderIcon={iconPlaceholder('P')}
+        searchable
+        searchPlaceholder="Set project..."
         tabIndex={-1}
       />
     ),
@@ -460,6 +469,132 @@ const priorityGroupConfigs: Record<string, GroupConfig> = {
 
 type Tab = 'all' | 'active' | 'backlog'
 
+interface IssueDetailProps {
+  issue: Issue
+  index: number
+  total: number
+  onBack: () => void
+  onNavigate: (direction: 1 | -1) => void
+  onUpdate: UpdateIssue
+}
+
+function IssueDetail({ issue, index, total, onBack, onNavigate, onUpdate }: IssueDetailProps) {
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onBack()
+      } else if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        onNavigate(1)
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        onNavigate(-1)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onBack, onNavigate])
+
+  return (
+    <div className="flex flex-1 min-h-0">
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Detail header */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 text-sm">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground rounded px-1 py-0.5 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none">Esc</kbd>
+          </button>
+          <span className="font-mono text-xs text-muted-foreground">{issue.code}</span>
+          <div className="ml-auto flex items-center gap-1 text-muted-foreground">
+            <span className="text-xs">{index + 1} / {total}</span>
+            <button
+              onClick={() => onNavigate(-1)}
+              disabled={index <= 0}
+              title="Previous issue (k)"
+              className="p-1 rounded hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:pointer-events-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <ChevronUpIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onNavigate(1)}
+              disabled={index >= total - 1}
+              title="Next issue (j)"
+              className="p-1 rounded hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:pointer-events-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <ChevronDownIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Detail body */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-8 py-10">
+            <h1 className="text-2xl font-semibold leading-snug">{issue.title}</h1>
+            <p className="mt-6 text-sm text-muted-foreground">Add description…</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Properties sidebar */}
+      <aside className="w-60 shrink-0 border-l border-border px-4 py-4 flex flex-col gap-3 overflow-y-auto">
+        <p className="text-xs text-muted-foreground font-medium">Properties</p>
+        <AttributeButton
+          options={statusOptions}
+          selected={[issue.status]}
+          onSelect={value => onUpdate(issue.id, i => ({ ...i, status: value as Issue['status'] }))}
+          searchable
+          searchPlaceholder="Set status..."
+          className="justify-start"
+        />
+        <AttributeButton
+          options={priorityOptions}
+          selected={issue.priority ? [issue.priority] : []}
+          onSelect={value =>
+            onUpdate(issue.id, i => ({
+              ...i,
+              priority: i.priority === value ? undefined : (value as Issue['priority']),
+            }))
+          }
+          placeholder="Priority"
+          placeholderIcon={<EllipsisIcon className="h-3.5 w-3.5" />}
+          searchable
+          searchPlaceholder="Set priority..."
+          className="justify-start"
+        />
+        <AttributeButton
+          options={labelOptions}
+          selected={issue.labels ?? []}
+          multi
+          onSelect={value => onUpdate(issue.id, i => ({ ...i, labels: toggleValue(i.labels ?? [], value) }))}
+          placeholder="Label"
+          placeholderIcon={iconPlaceholder('L')}
+          searchable
+          searchPlaceholder="Add label..."
+          className="justify-start"
+        />
+        <AttributeButton
+          options={projectOptions}
+          selected={issue.project ? [issue.project] : []}
+          onSelect={value => onUpdate(issue.id, i => ({ ...i, project: i.project === value ? undefined : value }))}
+          placeholder="Project"
+          placeholderIcon={iconPlaceholder('P')}
+          searchable
+          searchPlaceholder="Set project..."
+          className="justify-start"
+        />
+      </aside>
+    </div>
+  )
+}
+
 function IssuesPage() {
   const [activeTab, setActiveTab] = React.useState<Tab>('all')
   const [collapsed, setCollapsed] = React.useState(false)
@@ -473,6 +608,7 @@ function IssuesPage() {
   const [visibleColumns, setVisibleColumns] = React.useState<Set<ToggleableColumn>>(new Set(defaultVisibleColumns))
   const [view, setView] = React.useState<'list' | 'table'>('list')
   const [groupField, setGroupField] = React.useState<GroupField>('project')
+  const [openIssueId, setOpenIssueId] = React.useState<string | null>(null)
 
   const handleToggleColumn = (col: ToggleableColumn) => {
     setVisibleColumns(prev => {
@@ -492,6 +628,82 @@ function IssuesPage() {
   const updateIssue = React.useCallback<UpdateIssue>(
     (id, updater) => setData(prev => prev.map(issue => (issue.id === id ? updater(issue) : issue))),
     []
+  )
+
+  const rowActions = React.useMemo<RowAction<Issue>[]>(() => {
+    const applyTo = (rows: Issue[], updater: (issue: Issue) => Issue) =>
+      setData(prev => prev.map(issue => (rows.some(r => r.id === issue.id) ? updater(issue) : issue)))
+    return [
+      {
+        label: 'Status',
+        icon: <CircleDashedIcon className="h-3.5 w-3.5" />,
+        shortcut: 's',
+        subActions: statusOptions.map(o => ({
+          label: o.label,
+          icon: o.icon,
+          onClick: rows => applyTo(rows, i => ({ ...i, status: o.value as Issue['status'] })),
+        })),
+      },
+      {
+        label: 'Label',
+        icon: <BookmarkIcon className="h-3.5 w-3.5" />,
+        shortcut: 'l',
+        subActions: labelOptions.map(o => ({
+          label: o.label,
+          icon: o.icon,
+          onClick: rows => applyTo(rows, i => ({ ...i, labels: toggleValue(i.labels ?? [], o.value) })),
+        })),
+      },
+      {
+        label: 'Priority',
+        icon: <AlertCircleIcon className="h-3.5 w-3.5" />,
+        shortcut: 'p',
+        subActions: [
+          ...priorityOptions.map(o => ({
+            label: o.label,
+            icon: o.icon,
+            onClick: (rows: Issue[]) => applyTo(rows, i => ({ ...i, priority: o.value as Issue['priority'] })),
+          })),
+          {
+            label: 'No priority',
+            icon: <EllipsisIcon className="h-3.5 w-3.5 text-muted-foreground/60" />,
+            onClick: (rows: Issue[]) => applyTo(rows, i => ({ ...i, priority: undefined })),
+          },
+        ],
+      },
+      {
+        label: 'Delete',
+        icon: <TrashIcon className="h-3.5 w-3.5" />,
+        destructive: true,
+        onClick: rows => setData(prev => prev.filter(issue => !rows.some(r => r.id === issue.id))),
+      },
+    ]
+  }, [])
+
+  // Issue order for the detail view's prev/next navigation, honoring active filters.
+  const filteredIssues = React.useMemo(
+    () =>
+      data.filter(row =>
+        activeFilters.every(af => {
+          if (af.values.length === 0) return true
+          const def = issueFilterDefs.find(d => d.id === af.filterId)
+          return def ? def.filterFn(row, af.values) : true
+        })
+      ),
+    [data, activeFilters]
+  )
+
+  const openIssue = openIssueId ? data.find(i => i.id === openIssueId) : undefined
+
+  const handleNavigateIssue = React.useCallback(
+    (direction: 1 | -1) => {
+      setOpenIssueId(prevId => {
+        const idx = filteredIssues.findIndex(i => i.id === prevId)
+        const next = filteredIssues[idx + direction]
+        return next ? next.id : prevId
+      })
+    },
+    [filteredIssues]
   )
 
   const filteredColumns = React.useMemo(
@@ -536,7 +748,7 @@ function IssuesPage() {
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (createOpen) return
+      if (createOpen || openIssueId) return
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (e.key === 'f' || e.key === 'F') {
@@ -550,7 +762,7 @@ function IssuesPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [createOpen])
+  }, [createOpen, openIssueId])
 
   const handleCreateIssue = (values: IssueCreateValues) => {
     const newId = String(Date.now())
@@ -615,6 +827,17 @@ function IssuesPage() {
           <BellIcon className="h-4 w-4 text-muted-foreground" />
         </div>
 
+        {openIssue ? (
+          <IssueDetail
+            issue={openIssue}
+            index={filteredIssues.findIndex(i => i.id === openIssue.id)}
+            total={filteredIssues.length}
+            onBack={() => setOpenIssueId(null)}
+            onNavigate={handleNavigateIssue}
+            onUpdate={updateIssue}
+          />
+        ) : (
+        <>
         {/* Tab bar */}
         <div className="flex items-center justify-between px-4 border-b border-border shrink-0">
           <div className="flex items-center gap-1">
@@ -690,6 +913,9 @@ function IssuesPage() {
             view={view}
             pageSize="all"
             getRowId={(row) => row.id}
+            rowActions={rowActions}
+            getRowLabel={(row) => row.code}
+            onRowOpen={(row) => setOpenIssueId(row.id)}
             onRowReorder={setData}
             onSwitchToManual={() => setSortField(null)}
             filterDefs={issueFilterDefs}
@@ -723,6 +949,8 @@ function IssuesPage() {
             <button className="ml-1 underline hover:text-foreground rounded outline-none focus-visible:ring-1 focus-visible:ring-ring">Show options</button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   )
