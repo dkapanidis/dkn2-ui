@@ -6,15 +6,34 @@ Linear-inspired React UI component library built on shadcn/ui.
 
 ### shadcn registry (per component)
 
-Copy individual components directly into your project. shadcn will install dependencies automatically.
+Add the `@dkn2` registry namespace to your project's `components.json` once:
+
+```json
+{
+  "registries": {
+    "@dkn2": "https://dkapanidis.github.io/dkn2-ui/r/{name}.json"
+  }
+}
+```
+
+Then install components — shadcn copies the source files into your project and installs npm dependencies, dkn2-ui's styled primitives (button, dialog, ...), and the theme CSS variables automatically:
 
 ```bash
-npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/data-table
-npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/side-menu
-npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/filter-bar
-npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/command-menu
-npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/theme
+npx shadcn@latest add @dkn2/data-table
+npx shadcn@latest add @dkn2/create-issue
+npx shadcn@latest add @dkn2/side-menu
+npx shadcn@latest add @dkn2/command-menu
+npx shadcn@latest add @dkn2/theme
 ```
+
+To pull the latest version of already-installed components (after dkn2-ui pushes to main), re-run with `--overwrite`:
+
+```bash
+npx shadcn@latest add @dkn2/data-table --overwrite --yes
+```
+
+> Direct URLs also work without the namespace config, e.g.
+> `npx shadcn@latest add https://dkapanidis.github.io/dkn2-ui/r/data-table.json`
 
 ### GitHub package (full library)
 
@@ -36,15 +55,20 @@ import 'dkn2-ui/styles'
 
 ## Components
 
-| Component | Description | Dependencies |
-|-----------|-------------|--------------|
-| `data-table` | Linear-inspired data table with sort, search, and pagination. | `@tanstack/react-table` |
-| `side-menu` | Collapsible sidebar navigation with icons and active states. | — |
-| `filter-bar` | Filter chips bar with search and dropdown filter picker. | — |
-| `command-menu` | ⌘K command palette with grouped items and keyboard shortcuts. | `cmdk` |
-| `theme` | ThemeProvider, useTheme hook, and ThemeToggle button. | — |
+| Component | Description |
+|-----------|-------------|
+| `data-table` | Linear-inspired data table with sorting, filtering, selection, drag-and-drop, and keyboard navigation. |
+| `create-issue` | Linear-style create issue dialog with configurable attribute schema. |
+| `attribute-button` | Compact attribute picker button used in issue forms. |
+| `color-picker` | Color swatch picker popover. |
+| `side-menu` | Collapsible sidebar navigation with icons and active states. |
+| `command-menu` | ⌘K command palette with grouped items and keyboard shortcuts. |
+| `settings` | Settings page layout with sections and controls. |
+| `theme` | ThemeProvider, useTheme hook, and ThemeToggle button. |
 
-All components depend on shadcn/ui base components (button, badge, input, etc.) which are resolved automatically when using the registry method.
+The registry also publishes dkn2-ui's customized shadcn primitives (`button`, `dialog`, `table`, ...) and a `theme-css` item with the library's CSS variables (light/dark, including the `selected` and `sidebar` tokens). These are declared as registry dependencies of the components above and are pulled in automatically — npm dependencies (pinned to this repo's versions) are installed automatically too.
+
+The registry is rebuilt and deployed to GitHub Pages by CI on every push to `main` (`.github/workflows/pages.yml`), so publishing an update is just pushing a commit.
 
 ## Development
 

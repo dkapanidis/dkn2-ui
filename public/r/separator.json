@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "separator",
+  "type": "registry:ui",
+  "title": "Separator",
+  "description": "dkn2-ui styled Separator primitive.",
+  "dependencies": [
+    "@radix-ui/react-separator@^1.1.2"
+  ],
+  "registryDependencies": [
+    "utils",
+    "https://dkapanidis.github.io/dkn2-ui/r/theme-css.json"
+  ],
+  "files": [
+    {
+      "path": "components/ui/separator.tsx",
+      "content": "import * as SeparatorPrimitive from '@radix-ui/react-separator'\nimport * as React from 'react'\nimport { cn } from '@/lib/utils'\n\nconst Separator = React.forwardRef<\n  React.ElementRef<typeof SeparatorPrimitive.Root>,\n  React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>\n>(({ className, orientation = 'horizontal', decorative = true, ...props }, ref) => (\n  <SeparatorPrimitive.Root\n    ref={ref}\n    decorative={decorative}\n    orientation={orientation}\n    className={cn(\n      'shrink-0 bg-border',\n      orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px',\n      className\n    )}\n    {...props}\n  />\n))\nSeparator.displayName = SeparatorPrimitive.Root.displayName\n\nexport { Separator }\n",
+      "type": "registry:ui"
+    }
+  ]
+}

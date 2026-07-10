@@ -1,25 +1,133 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
-  "name": "dkn2-ui",
+  "name": "dkn2",
   "homepage": "https://github.com/dkapanidis/dkn2-ui",
   "items": [
     {
-      "name": "data-table",
-      "type": "registry:component",
-      "title": "Data Table",
-      "description": "Linear-inspired data table with sort, search, and pagination."
+      "name": "theme-css",
+      "type": "registry:theme",
+      "title": "dkn2 Theme Variables",
+      "description": "CSS variables (light/dark) for dkn2-ui, including selected/sidebar tokens."
     },
     {
-      "name": "side-menu",
-      "type": "registry:component",
-      "title": "Side Menu",
-      "description": "Collapsible sidebar navigation with icons and active states."
+      "name": "popover",
+      "type": "registry:ui",
+      "title": "Popover",
+      "description": "dkn2-ui styled Popover primitive."
     },
     {
-      "name": "filter-bar",
+      "name": "sheet",
+      "type": "registry:ui",
+      "title": "Sheet",
+      "description": "dkn2-ui styled Sheet primitive."
+    },
+    {
+      "name": "scroll-area",
+      "type": "registry:ui",
+      "title": "Scroll Area",
+      "description": "dkn2-ui styled Scroll Area primitive."
+    },
+    {
+      "name": "label",
+      "type": "registry:ui",
+      "title": "Label",
+      "description": "dkn2-ui styled Label primitive."
+    },
+    {
+      "name": "sonner",
+      "type": "registry:ui",
+      "title": "Sonner",
+      "description": "dkn2-ui styled Sonner primitive."
+    },
+    {
+      "name": "tooltip",
+      "type": "registry:ui",
+      "title": "Tooltip",
+      "description": "dkn2-ui styled Tooltip primitive."
+    },
+    {
+      "name": "switch",
+      "type": "registry:ui",
+      "title": "Switch",
+      "description": "dkn2-ui styled Switch primitive."
+    },
+    {
+      "name": "command",
+      "type": "registry:ui",
+      "title": "Command",
+      "description": "dkn2-ui styled Command primitive."
+    },
+    {
+      "name": "dialog",
+      "type": "registry:ui",
+      "title": "Dialog",
+      "description": "dkn2-ui styled Dialog primitive."
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "title": "Badge",
+      "description": "dkn2-ui styled Badge primitive."
+    },
+    {
+      "name": "table",
+      "type": "registry:ui",
+      "title": "Table",
+      "description": "dkn2-ui styled Table primitive."
+    },
+    {
+      "name": "separator",
+      "type": "registry:ui",
+      "title": "Separator",
+      "description": "dkn2-ui styled Separator primitive."
+    },
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "dkn2-ui styled Button primitive."
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "Dropdown Menu",
+      "description": "dkn2-ui styled Dropdown Menu primitive."
+    },
+    {
+      "name": "select",
+      "type": "registry:ui",
+      "title": "Select",
+      "description": "dkn2-ui styled Select primitive."
+    },
+    {
+      "name": "input",
+      "type": "registry:ui",
+      "title": "Input",
+      "description": "dkn2-ui styled Input primitive."
+    },
+    {
+      "name": "create-issue",
       "type": "registry:component",
-      "title": "Filter Bar",
-      "description": "Filter chips bar with search and dropdown filter picker."
+      "title": "Create Issue Dialog",
+      "description": "Linear-style create issue dialog with configurable attribute schema."
+    },
+    {
+      "name": "settings",
+      "type": "registry:component",
+      "title": "Settings Page",
+      "description": "Settings page layout with sections and controls."
+    },
+    {
+      "name": "attribute-button",
+      "type": "registry:component",
+      "title": "Attribute Button",
+      "description": "Compact attribute picker button used in issue forms."
+    },
+    {
+      "name": "theme",
+      "type": "registry:component",
+      "title": "Theme",
+      "description": "ThemeProvider, useTheme hook, and ThemeToggle button."
     },
     {
       "name": "command-menu",
@@ -28,10 +136,22 @@
       "description": "⌘K command palette with grouped items and keyboard shortcuts."
     },
     {
-      "name": "theme",
+      "name": "side-menu",
       "type": "registry:component",
-      "title": "Theme",
-      "description": "ThemeProvider, useTheme hook, and ThemeToggle button."
+      "title": "Side Menu",
+      "description": "Collapsible sidebar navigation with icons and active states."
+    },
+    {
+      "name": "color-picker",
+      "type": "registry:component",
+      "title": "Color Picker",
+      "description": "Color swatch picker popover."
+    },
+    {
+      "name": "data-table",
+      "type": "registry:component",
+      "title": "Data Table",
+      "description": "Linear-inspired data table with sorting, filtering, selection, drag-and-drop, and keyboard navigation."
     }
   ]
 }

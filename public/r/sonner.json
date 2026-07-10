@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "sonner",
+  "type": "registry:ui",
+  "title": "Sonner",
+  "description": "dkn2-ui styled Sonner primitive.",
+  "dependencies": [
+    "sonner@^2.0.3"
+  ],
+  "registryDependencies": [
+    "https://dkapanidis.github.io/dkn2-ui/r/theme-css.json"
+  ],
+  "files": [
+    {
+      "path": "components/ui/sonner.tsx",
+      "content": "import * as React from 'react'\nimport { Toaster as Sonner, toast, type ToasterProps } from 'sonner'\n\nfunction readDocTheme(): 'light' | 'dark' {\n  if (typeof document === 'undefined') return 'light'\n  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'\n}\n\nfunction useDocTheme(): 'light' | 'dark' {\n  const [theme, setTheme] = React.useState<'light' | 'dark'>(readDocTheme)\n  React.useEffect(() => {\n    const update = () => setTheme(readDocTheme())\n    update()\n    const observer = new MutationObserver(update)\n    observer.observe(document.documentElement, {\n      attributes: true,\n      attributeFilter: ['class'],\n    })\n    return () => observer.disconnect()\n  }, [])\n  return theme\n}\n\nconst Toaster = ({ theme, ...props }: ToasterProps) => {\n  const docTheme = useDocTheme()\n  return (\n    <Sonner\n      theme={theme ?? docTheme}\n      className=\"toaster group\"\n      style={\n        {\n          '--normal-bg': 'var(--popover)',\n          '--normal-text': 'var(--popover-foreground)',\n          '--normal-border': 'var(--border)',\n          '--success-bg': 'var(--popover)',\n          '--success-text': 'var(--popover-foreground)',\n          '--success-border': 'var(--border)',\n          '--error-bg': 'var(--popover)',\n          '--error-text': 'var(--popover-foreground)',\n          '--error-border': 'var(--border)',\n          '--info-bg': 'var(--popover)',\n          '--info-text': 'var(--popover-foreground)',\n          '--info-border': 'var(--border)',\n          '--warning-bg': 'var(--popover)',\n          '--warning-text': 'var(--popover-foreground)',\n          '--warning-border': 'var(--border)',\n        } as React.CSSProperties\n      }\n      {...props}\n    />\n  )\n}\n\nexport { Toaster, toast }\n",
+      "type": "registry:ui"
+    }
+  ]
+}

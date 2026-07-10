@@ -1,0 +1,22 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "button",
+  "type": "registry:ui",
+  "title": "Button",
+  "description": "dkn2-ui styled Button primitive.",
+  "dependencies": [
+    "@radix-ui/react-slot@^1.2.0",
+    "class-variance-authority@^0.7.1"
+  ],
+  "registryDependencies": [
+    "utils",
+    "https://dkapanidis.github.io/dkn2-ui/r/theme-css.json"
+  ],
+  "files": [
+    {
+      "path": "components/ui/button.tsx",
+      "content": "import { Slot } from '@radix-ui/react-slot'\nimport { cva, type VariantProps } from 'class-variance-authority'\nimport * as React from 'react'\nimport { cn } from '@/lib/utils'\n\nconst buttonVariants = cva(\n  \"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 [outline:1px_solid_transparent] [outline-offset:-1px] transition-[outline-color,box-shadow,background-color,color] focus-visible:[outline-color:var(--color-ring)] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive\",\n  {\n    variants: {\n      variant: {\n        default:\n          'bg-selected text-selected-foreground shadow-[0_1px_2px_0_rgb(0_0_0/0.05),inset_0_0_0_2px_transparent] hover:bg-selected/90 focus-visible:shadow-[0_1px_2px_0_rgb(0_0_0/0.05),inset_0_0_0_2px_var(--color-background)]',\n        destructive:\n          'bg-destructive text-white shadow-[0_1px_2px_0_rgb(0_0_0/0.05),inset_0_0_0_2px_transparent] hover:bg-destructive/90 dark:bg-destructive/60 focus-visible:shadow-[0_1px_2px_0_rgb(0_0_0/0.05),inset_0_0_0_2px_var(--color-background)]',\n        outline:\n          'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',\n        secondary:\n          'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',\n        ghost:\n          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',\n        link: 'text-primary underline-offset-4 hover:underline',\n        attribute:\n          'border border-border bg-transparent text-muted-foreground hover:border-border/80 hover:text-foreground',\n      },\n      size: {\n        default: 'h-9 px-4 py-2 has-[>svg]:px-3',\n        sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',\n        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',\n        icon: 'size-9',\n        'icon-sm': 'size-7 rounded-md [&_svg:not([class*=size-])]:size-3.5',\n        pill: 'h-7 px-2.5 rounded-full gap-1.5 text-xs [&_svg:not([class*=size-])]:size-3.5',\n        'pill-icon': 'size-7 rounded-full [&_svg:not([class*=size-])]:size-3.5',\n        'pill-lg': 'h-8 px-4 rounded-full text-sm',\n      },\n    },\n    defaultVariants: {\n      variant: 'default',\n      size: 'default',\n    },\n  }\n)\n\nexport interface ButtonProps\n  extends React.ButtonHTMLAttributes<HTMLButtonElement>,\n    VariantProps<typeof buttonVariants> {\n  asChild?: boolean\n}\n\nconst Button = React.forwardRef<HTMLButtonElement, ButtonProps>(\n  ({ className, variant, size, asChild = false, ...props }, ref) => {\n    const Comp = asChild ? Slot : 'button'\n    return (\n      <Comp\n        className={cn(buttonVariants({ variant, size, className }))}\n        ref={ref}\n        {...props}\n      />\n    )\n  }\n)\nButton.displayName = 'Button'\n\nexport { Button, buttonVariants }\n",
+      "type": "registry:ui"
+    }
+  ]
+}

@@ -5,7 +5,10 @@
       "Bash(bun run *)",
       "Bash(npx tsc *)",
       "Bash(bun add *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git -C /Users/dkapanidis/src/dkn2-ui remote -v)",
+      "Bash(git -C /Users/dkapanidis/src/dkn2-ui log --oneline -3 -- public scripts)",
+      "Bash(python3 *)"
     ]
   }
 }
