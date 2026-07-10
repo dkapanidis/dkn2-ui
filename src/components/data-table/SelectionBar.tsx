@@ -1,5 +1,4 @@
 import { CommandIcon, XIcon } from 'lucide-react'
-import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { RowAction } from './types'

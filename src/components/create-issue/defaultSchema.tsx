@@ -7,7 +7,6 @@ import {
   CircleDotDashedIcon,
   TargetIcon,
 } from 'lucide-react'
-import * as React from 'react'
 import type { IssueCreateSchema } from './types'
 
 export const defaultIssueSchema: IssueCreateSchema = {
