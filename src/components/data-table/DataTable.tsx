@@ -4,6 +4,7 @@ import {
   MeasuringStrategy,
   closestCenter,
   useDroppable,
+  type Modifier,
 } from '@dnd-kit/core'
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -480,8 +481,8 @@ export function DataTable<TData, TValue>({
   // Prevent the drag overlay from rising above the first group header in
   // multi-group views — keeps the sticky header visible and avoids the
   // nonsensical "drop above the first group title" gesture.
-  const restrictAboveFirstGroupHeader = React.useCallback(
-    ({ transform, draggingNodeRect }: { transform: { x: number; y: number; scaleX: number; scaleY: number }; draggingNodeRect: DOMRect | null }) => {
+  const restrictAboveFirstGroupHeader = React.useCallback<Modifier>(
+    ({ transform, draggingNodeRect }) => {
       if (!draggingNodeRect) return transform
       const headers = tableContainerRef.current?.querySelectorAll<HTMLElement>('[data-group-header]')
       if (!headers || headers.length < 2) return transform
